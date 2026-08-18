@@ -1,0 +1,28 @@
+{
+  "name": "@mcplock/ingest",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Write-optimized Ingest API: POST /v1/events, plus the minimal device-auth/machine-registration surface Milestone 3 needs before the App API (Milestone 4) exists.",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/index.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@mcplock/shared-types": "workspace:^",
+    "@noble/curves": "^2.3.0",
+    "argon2": "^0.45.1",
+    "better-sqlite3": "^13.0.3",
+    "fastify": "^5.12.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^26.2.0",
+    "tsx": "^4.19.2",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  }
+}

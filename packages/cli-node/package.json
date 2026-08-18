@@ -20,6 +20,10 @@
     "build": "tsc -p tsconfig.json && node esbuild.bundle-cli.mjs",
     "test": "vitest run"
   },
+  "dependencies": {
+    "@napi-rs/keyring": "^1.3.0",
+    "@noble/curves": "^2.3.0"
+  },
   "devDependencies": {
     "@mcplock/cli-core": "workspace:^",
     "@mcplock/shared-types": "workspace:^",

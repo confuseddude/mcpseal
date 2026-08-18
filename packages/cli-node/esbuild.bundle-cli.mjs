@@ -21,6 +21,12 @@ await build({
   format: "esm",
   outfile: "dist/cli.js",
   allowOverwrite: true,
+  // @napi-rs/keyring is a native addon distributed as prebuilt per-platform
+  // binaries via its own optionalDependencies — esbuild can't bundle a
+  // native .node file, and doesn't need to: npm installs the right binary
+  // for the consumer's platform automatically as long as the package stays
+  // a real (unbundled) dependency.
+  external: ["@napi-rs/keyring"],
 });
 
 console.log("Bundled dist/cli.js (self-contained, no workspace-internal runtime deps)");

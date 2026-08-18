@@ -11,6 +11,9 @@ import { appendEvent, readEvents, recentBlocks } from "./event-log.js";
 import { scan } from "./scan.js";
 import { setToolStatus } from "./manage.js";
 import { diffDrifted, formatDiff } from "./diff.js";
+import { login } from "./login.js";
+import { shipEventsBestEffort } from "./ship-events.js";
+import { readConfig, isLoggedIn } from "./config.js";
 
 async function main(): Promise<void> {
   const [, , command, ...rest] = process.argv;
@@ -65,6 +68,12 @@ async function main(): Promise<void> {
             oldDescription: result.oldDescription,
             newDescription: result.newDescription,
           });
+          // Opt-in only (CLAUDE.md invariant 2): shipEvents() checks
+          // isLoggedIn() first and is a total no-op — zero network calls —
+          // if the user never ran `mcplock login`. Fire-and-forget so a
+          // shipping failure or slow network never delays the block itself,
+          // which has already happened by this point.
+          shipEventsBestEffort();
         },
       });
       await handle.closed;
@@ -122,6 +131,12 @@ async function main(): Promise<void> {
     case "status": {
       const events = readEvents();
       const blocks = recentBlocks(events, 10);
+      const config = readConfig();
+      if (config?.workspaceId) {
+        console.log(`mcplock status: connected to workspace ${config.workspaceId} (machine ${config.machineId})`);
+      } else {
+        console.log("mcplock status: not logged in — running fully local, no workspace connection.");
+      }
       if (events.length === 0) {
         console.log("mcplock status: no events recorded yet on this machine.");
         return;
@@ -132,9 +147,28 @@ async function main(): Promise<void> {
       }
       return;
     }
+    case "login": {
+      if (isLoggedIn()) {
+        console.log("mcplock login: already logged in. Run `mcplock logout` first to switch workspaces.");
+        return;
+      }
+      try {
+        const result = await login({
+          onWaitingForApproval: (userCode) => {
+            console.log(`mcplock login: go approve this device — user code: ${userCode}`);
+            console.log("mcplock login: waiting for approval...");
+          },
+        });
+        console.log(`mcplock login: connected to workspace ${result.workspaceId} (machine ${result.machineId})`);
+      } catch (err) {
+        console.error(`mcplock login: failed — ${(err as Error).message}`);
+        process.exitCode = 1;
+      }
+      return;
+    }
     default: {
       console.error(
-        `Unknown or missing command: ${command ?? "(none)"}\nUsage: mcplock init|install|uninstall|status|scan|diff [projectDir] | mcplock proxy <serverName> <command> [args...] | mcplock approve|deny <serverName> <toolName>`
+        `Unknown or missing command: ${command ?? "(none)"}\nUsage: mcplock init|install|uninstall|status|scan|diff|login [projectDir] | mcplock proxy <serverName> <command> [args...] | mcplock approve|deny <serverName> <toolName>`
       );
       process.exitCode = 1;
     }
