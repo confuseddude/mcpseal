@@ -16,6 +16,12 @@ This is the working checklist. `CLAUDE.md` (repo root) is the rules. `docs/build
 ## STATUS
 
 ```
+Current milestone: 4 — MILESTONE 4 COMPLETE. App API (session auth, server-side RBAC, cross-org isolation), Next.js dashboard (Live Feed/Fleet/Policy/Audit/Settings, dark ops-console design per frontend-design skill). Built under Night Shift autonomous-execution authorization; see NIGHT_SHIFT_LOG.md for full detail, mocks, and the two real bugs found and fixed via actual browser testing (missing CORS, device-flow workspace-binding timing). Proceeding directly to Milestone 5.
+Current step: none — milestone boundary
+Last verified working: 4.x — 16 new app-api tests (RBAC + 3 explicit cross-org isolation tests) + full real browser walkthrough of every dashboard page against live app-api/ingest/dashboard servers, including a real mcplock login + real rug-pull block appearing correctly in the Live Feed with the diff rendered. Full regression: 133 TS tests + 39 Python tests, all passing. All real machine state touched during e2e testing (keychain, config, temp DBs, dev server processes) cleaned up afterward.
+Blockers: none
+
+Previous milestone —
 Current milestone: 3 — MILESTONE 3 COMPLETE. Ingest API + minimal machine/workspace registration (services/ingest, SQLite dev backend standing in for Postgres+ClickHouse/Timescale, documented in NIGHT_SHIFT_LOG.md), mcplock login (device flow + OS keychain + ed25519 machine identity), opt-in signed event shipping from the local event log. Built under explicit Night Shift autonomous-execution authorization (no per-milestone confirmation stop) — see NIGHT_SHIFT_LOG.md for full detail, mocks, and production-wiring gaps. Proceeding directly to Milestone 4 per that authorization.
 Current step: none — milestone boundary
 Last verified working: 3.x — 14 new ingest tests + 15 new cli-node tests (keychain/machine-identity/login/ship-events), including the CLAUDE.md invariant-2 test that shipEvents() makes zero network calls with no login. Full real e2e run: real login against a real dev ingest server, real rug-pull block, signed shipment independently verified in the event store with correct old/new description diff. Full regression: 117 TS tests + 39 Python tests, all passing. Test/credential state left on the machine by the e2e run was cleaned up afterward.
@@ -126,9 +132,17 @@ Reference: `build-bible.md` Part 4, Part 5.2, Part 6.2.
 
 **Milestone 3 exit criteria — met:** a real login against a real dev ingest server was run end-to-end, and the Milestone 2 rug-pull demo was re-run with shipping live — the block fired locally exactly as before, and the signed event was independently verified present in the ingest event store with the correct old/new description diff. 14 new ingest tests + 15 new cli-node tests passing, full regression (117 TS + 39 Python) green.
 
-## Milestone 4 — App API + Auth + Dashboard skeleton *(stub)*
+## Milestone 4 — App API + Auth + Dashboard skeleton — COMPLETE (see NIGHT_SHIFT_LOG.md for full detail)
 
-Reference: Part 4.1, Part 6, Part 7. High-level: WorkOS integration, sessions/RBAC, orgs/users/workspaces CRUD, the Live Feed page.
+Reference: Part 4.1, Part 6, Part 7.
+
+- [x] **4.1 — App API core domain model.** `services/app-api/src/db.ts`: orgs/users/sessions/policies/subscriptions (Part 5.1), sharing the ingest service's dev DB file for workspaces/machines/api_keys/events.
+- [x] **4.2 — RBAC.** `owner/admin/member/viewer`, enforced server-side on every protected route, never trusting client-supplied org/workspace IDs. 3 explicit cross-org isolation tests passing.
+- [x] **4.3 — Human auth.** Session-based (httpOnly/Secure/SameSite=Lax cookie, server-side revocable). Dev-mock provider stands in for WorkOS (documented, not hidden) — same downstream shape a real WorkOS callback would produce.
+- [x] **4.4 — Dashboard.** Next.js App Router + TS + Tailwind v4. Live Feed (the money screen — polling, real unified-diff rendering of the description change), Fleet, Policy (draft CRUD), Audit (real subscription-gated Enterprise teaser), Settings (members/roles, API keys, billing). Design direction taken from the frontend-design skill: dark ops-console, not a generic AI-dashboard default.
+- [x] **4.5 — Live event flow, verified for real.** `mcplock proxy` block → local log → signed shipment → ingest → app-api → dashboard Live Feed, driven through an actual browser with a real rug-pull payload, confirmed rendering correctly.
+
+**Milestone 4 exit criteria — met:** a Security Lead can log in and watch blocks stream in across machines (real browser walkthrough, not a mockup). Two real bugs found via that testing (missing CORS, device-flow workspace-binding timing bug) were fixed, not glossed over. 16 new app-api tests + full regression (133 TS + 39 Python) passing.
 
 ## Milestone 5 — Billing + Team tier *(stub)*
 

@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+/* Design tokens — ops-console direction (see NIGHT_SHIFT_LOG.md Milestone 4):
+   deep slate-navy, not the generic near-black+neon-accent default. Severity
+   color is information (red=high, amber=medium, blue=info), not decoration. */
+@theme {
+  --font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --color-bg: #0b0f14;
+  --color-surface: #10161d;
+  --color-surface-raised: #131a22;
+  --color-border: #212b35;
+  --color-border-strong: #2c3947;
+  --color-text: #e6edf3;
+  --color-text-dim: #8b98a5;
+  --color-text-faint: #5a6773;
+
+  --color-severity-high: #ff5c5c;
+  --color-severity-medium: #ffb454;
+  --color-severity-info: #5cc8ff;
+  --color-severity-low: #6b7785;
+  --color-ok: #4fd1a5;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+}
+
+.font-data {
+  font-family: var(--font-mono);
+  font-variant-ligatures: none;
+}
+
+::selection {
+  background: rgba(92, 200, 255, 0.25);
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-severity-info);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

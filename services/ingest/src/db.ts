@@ -99,7 +99,10 @@ export function openDb(filePath: string): Database.Database {
     CREATE TABLE IF NOT EXISTS device_codes (
       device_code TEXT PRIMARY KEY,
       user_code TEXT NOT NULL UNIQUE,
-      workspace_id TEXT NOT NULL,
+      -- NULL until approved: the workspace is determined by whichever
+      -- authenticated dashboard session approves the code (Part 6.2), not
+      -- known at start time when the CLI is still anonymous.
+      workspace_id TEXT,
       status TEXT NOT NULL, -- pending | approved | denied
       created_at TEXT NOT NULL,
       expires_at TEXT NOT NULL

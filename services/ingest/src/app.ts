@@ -107,9 +107,13 @@ export function buildApp(dbPath: string): FastifyInstance {
 
   // --- Device authorization flow (Part 6.2) ---
   app.post("/v1/auth/device/start", async (_req, reply) => {
-    const result = startDeviceFlow(db, devWorkspace.id);
+    const result = startDeviceFlow(db);
+    // DEV MOCK: no Dashboard exists to click "approve" yet, so this
+    // auto-approves against a single hardcoded dev workspace. In
+    // production the real approve call (below) supplies the approving
+    // user's actual org workspace instead.
     if (process.env.MCPLOCK_DEV_AUTO_APPROVE_DEVICE === "1") {
-      approveDeviceCode(db, result.userCode);
+      approveDeviceCode(db, result.userCode, devWorkspace.id);
     }
     return reply.send(result);
   });
@@ -122,14 +126,17 @@ export function buildApp(dbPath: string): FastifyInstance {
     return reply.send(result);
   });
 
-  // Production: called by an authenticated Dashboard session (Milestone 4).
-  // Not gated by API key here since no session system exists yet — this is
-  // the explicitly-documented Milestone-3 gap, not an oversight.
-  const approveSchema = z.object({ userCode: z.string().min(1) });
+  // Production: called by an authenticated Dashboard session (Milestone 4),
+  // which supplies the approving user's own org workspaceId — never a
+  // client-chosen one. Not gated by session auth here since ingest has no
+  // session system of its own (that's the App API's job); this endpoint
+  // trusting a caller-supplied workspaceId is the explicitly-documented
+  // gap until the Dashboard calls it through an authenticated proxy path.
+  const approveSchema = z.object({ userCode: z.string().min(1), workspaceId: z.string().uuid() });
   app.post("/v1/auth/device/approve", async (req, reply) => {
     const parsed = approveSchema.safeParse((req.body as any)?.json ?? req.body);
     if (!parsed.success) return reply.status(400).send({ error: "malformed request" });
-    const ok = approveDeviceCode(db, parsed.data.userCode);
+    const ok = approveDeviceCode(db, parsed.data.userCode, parsed.data.workspaceId);
     if (!ok) return reply.status(404).send({ error: "unknown or expired user code" });
     return reply.send({ approved: true });
   });

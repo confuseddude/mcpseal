@@ -25,29 +25,34 @@ export interface DeviceStartResult {
   interval: number;
 }
 
-export function startDeviceFlow(db: Database.Database, workspaceId: string): DeviceStartResult {
+// Note: no workspaceId parameter — at start time the CLI is still
+// anonymous, so which workspace this login joins isn't known yet (Part
+// 6.2: "the user approves it in the already-authenticated Dashboard").
+export function startDeviceFlow(db: Database.Database): DeviceStartResult {
   const deviceCode = randomUUID();
   const userCode = randomBytes(3).toString("hex").toUpperCase();
   const now = new Date();
   const expiresAt = new Date(now.getTime() + DEVICE_CODE_TTL_MS);
   db.prepare(
     `INSERT INTO device_codes (device_code, user_code, workspace_id, status, created_at, expires_at)
-     VALUES (?, ?, ?, 'pending', ?, ?)`
-  ).run(deviceCode, userCode, workspaceId, now.toISOString(), expiresAt.toISOString());
+     VALUES (?, ?, NULL, 'pending', ?, ?)`
+  ).run(deviceCode, userCode, now.toISOString(), expiresAt.toISOString());
   return { deviceCode, userCode, expiresIn: DEVICE_CODE_TTL_MS / 1000, interval: 2 };
 }
 
-// Called by an authenticated Dashboard session in production; called by the
-// dev auto-approve path locally. Either way this is the only function that
-// flips a device code to approved — there is one code path, not two.
-export function approveDeviceCode(db: Database.Database, userCode: string): boolean {
+// Called by an authenticated Dashboard session in production — workspaceId
+// comes from THAT session's org, not from the CLI — or by the dev
+// auto-approve path locally with a hardcoded dev workspace. Either way this
+// is the only function that flips a device code to approved; there is one
+// code path, not two.
+export function approveDeviceCode(db: Database.Database, userCode: string, workspaceId: string): boolean {
   const row = db.prepare("SELECT * FROM device_codes WHERE user_code = ?").get(userCode) as
     | { device_code: string; status: string; expires_at: string }
     | undefined;
   if (!row) return false;
   if (row.status !== "pending") return false;
   if (new Date(row.expires_at).getTime() < Date.now()) return false;
-  db.prepare("UPDATE device_codes SET status = 'approved' WHERE user_code = ?").run(userCode);
+  db.prepare("UPDATE device_codes SET status = 'approved', workspace_id = ? WHERE user_code = ?").run(workspaceId, userCode);
   return true;
 }
 
@@ -62,7 +67,7 @@ export type PollResult =
 // a second credential from the same authorization.
 export async function pollDeviceFlow(db: Database.Database, deviceCode: string): Promise<PollResult> {
   const row = db.prepare("SELECT * FROM device_codes WHERE device_code = ?").get(deviceCode) as
-    | { device_code: string; workspace_id: string; status: string; expires_at: string }
+    | { device_code: string; workspace_id: string | null; status: string; expires_at: string }
     | undefined;
   if (!row) return { status: "denied" };
   if (new Date(row.expires_at).getTime() < Date.now()) {
@@ -70,7 +75,7 @@ export async function pollDeviceFlow(db: Database.Database, deviceCode: string):
     return { status: "expired" };
   }
   if (row.status === "pending") return { status: "pending" };
-  if (row.status !== "approved") return { status: "denied" };
+  if (row.status !== "approved" || !row.workspace_id) return { status: "denied" };
 
   const { keyId, secret, token } = generateApiKey();
   const keyHash = await hashSecret(secret);

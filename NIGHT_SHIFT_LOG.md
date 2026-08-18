@@ -47,19 +47,40 @@
 
 ---
 
-# Milestone 4
+# Milestone 4 — App API + Auth + Dashboard skeleton
 
 ## Built
+- `services/app-api` (Fastify/TS): session-based human auth (`POST /v1/auth/dev-login|logout`, `GET /v1/auth/me`), full RBAC (`owner > admin > member > viewer`) enforced server-side on every protected route, org/user/workspace/machine/event/policy/API-key/subscription reads and writes — all scoped to the session's own org, never a client-supplied org/workspace ID.
+- `services/app-api/src/db.ts`: local SQLite dev implementation of Part 5.1's orgs/users/sessions/policies/subscriptions, sharing the SAME physical dev-DB file `services/ingest` uses for workspaces/machines/api_keys/events — mirrors "both services connect to the same Postgres instance" in production without needing RPC between them locally.
+- `apps/dashboard` (Next.js App Router + TypeScript + Tailwind v4): Live Feed (polling, the description-diff rendered as a real unified red/green diff — the page's signature element, since that diff is literally the product's detection mechanism made visible), Fleet, Policy (draft create/list), Audit (real subscription-gated, "locked door with a window in it" per Part 7.3 — not faked data, an honest placeholder for the actual M6 export), Settings (members/roles, API keys, billing). Dev-mock login page standing in for WorkOS.
+- Design direction (frontend-design skill, invoked before UI work per CLAUDE.md): dark ops-console palette (deep slate-navy, not the generic near-black+neon-accent AI default), monospace for all data/hashes/diffs since this is a security tool where the raw diff IS the value prop.
 
 ## Verified
+- 16 new app-api tests: dev-login creates/reuses orgs by email domain with correct owner-vs-member assignment; session cookie auth; logout revokes the session (confirmed unusable afterward); a forged/random session cookie is rejected; RBAC denies member/viewer actions requiring admin+ (role changes, API key management, policy creation) and allows them for owner/admin; **three explicit cross-org isolation tests** — org A's `/v1/members` never includes org B's user even though nothing about the request differentiates them beyond the session, an admin in org A gets 404 (not 403 — never leaking cross-org existence) trying to modify a user in org B, and org A sees zero of org B's workspaces/machines/events; policy versioning starts at 1 and increments correctly; malformed policy JSON rejected.
+- Full real end-to-end browser test (not just unit tests, not just curl): started app-api + ingest + the built-and-served dashboard for real, drove the actual browser through login → Live Feed → Fleet → Policy → Audit → Settings using claude-in-chrome. Ran a real `mcplock login` + real rug-pull block from a real proxied MCP session and confirmed it appeared in the Live Feed with the correct severity chip and the actual injected-payload text rendered in the red/green diff view. All real state this touched (keychain entries, `~/.mcplock/config.json`/`events.jsonl`, temp SQLite files, all spawned dev-server processes) was cleaned up afterward.
+- Two real bugs found via that browser testing (not hypothetical, not caught by unit tests) and fixed: (1) the App API had no CORS handling at all — cross-origin dashboard→API requests failed outright (OPTIONS 404, POST 503) — fixed by registering `@fastify/cors` with an explicit origin allowlist + credentials, not a wildcard; (2) the device-authorization flow bound `workspaceId` at *start* time using a hardcoded ingest-owned dev workspace, but per Part 6.2 the workspace should come from whichever authenticated Dashboard session *approves* the code — the CLI is still anonymous at start. Fixed by making `workspace_id` nullable until approval and moving the binding into `approveDeviceCode`, with `startDeviceFlow` no longer taking a workspaceId at all. This is a real architectural correction, not a demo workaround — regression tests updated in `services/ingest/src/app.test.ts` and still passing (14/14).
+- Full regression: 133 TS tests (shared-types 1, cli-core 49, cli-node 53, ingest 14, app-api 16) + 39 Python tests, all passing.
 
 ## Executive Decisions
+- `services/app-api` and `services/ingest` share one physical SQLite file in local dev (each declares its own tables with `CREATE TABLE IF NOT EXISTS`, no cross-package import) rather than one service proxying the other. This mirrors "both connect to the same Postgres instance" in production and kept the two services genuinely independent, matching Part 4.1's "three logical services... can be three processes in one repo to start."
+- `POST /v1/auth/dev-login` mocks WorkOS's hosted-auth callback by trusting a client-supplied email outright — the entire authentication boundary in this build. This is explicitly a dev-only stand-in, not "good enough" auth; flagged loudly below and in the login page's own copy ("Dev build: signs you in immediately...").
+- Policy API is CRUD-only in this milestone (create/list draft versions, `signature: null`) — no signing, no distribution, no client-side verification. That's Milestone 6's job per the Build Bible's explicit sequencing and CLAUDE.md's "Don't build the Enterprise policy-push feature before the signature-verification path is solid" instruction.
+- Audit page shows a real subscription-plan check (hits the real API) behind a blurred *mock* preview table, since the actual tamper-evident audit data doesn't exist until Milestone 6. Chose to be honest about this (page comment + this log) rather than have it look further along than it is.
 
 ## Spec Deviations
+- None to `docs/build-bible.md`'s content. The device-flow workspaceId-binding fix (start vs. approve) is a bug fix that makes the implementation match Part 6.2 as written, not a deviation from it — Part 6.2 already specifies the workspace comes from the approving Dashboard session.
 
 ## Mocks / Stubs
+- **WorkOS human auth**: not integrated. `POST /v1/auth/dev-login` implements the identical downstream shape (upsert user/org, create session, httpOnly/Secure/SameSite=Lax cookie) but skips the actual magic-link/OAuth/SAML identity verification. PRODUCTION WIRING REQUIRED: swap this one handler's body for a real WorkOS code exchange; sessions/cookies/RBAC are already production-shaped.
+- **Postgres**: still SQLite dev-only, per Milestone 3's note — now with the fuller Part 5.1 schema (orgs/users/sessions/policies/subscriptions) in addition to workspaces/machines/api_keys/events.
+- **No real DB migration tool wired up** (CLAUDE.md's tech stack calls for Prisma/Drizzle for TS). Schema changes during this session (e.g. the device_codes workspace_id nullability fix) only apply to freshly-created SQLite files, not existing ones — hit this directly during e2e testing and worked around it by using a fresh dev DB. PRODUCTION WIRING REQUIRED: real Postgres + Drizzle (or equivalent) migrations before this ships anywhere persistent.
+- **Dashboard-authenticated call into `/v1/auth/device/approve`**: the dashboard doesn't yet call this for real (would require the Settings page to have a "connect a machine" flow); it's exercised via the dev-auto-approve env var. The endpoint itself is real and now correctly workspace-scoped by whoever calls it — still not gated by session auth (documented in Milestone 3's log; unchanged).
 
 ## Production Wiring Required
+- Real WorkOS integration behind `/v1/auth/dev-login`'s replacement.
+- Real Postgres + Drizzle migrations (replacing services/app-api's and services/ingest's SQLite dev files).
+- A Dashboard-side "connect a machine" UI that calls `/v1/auth/device/approve` from an authenticated session (currently only reachable via the dev-auto-approve env var or a raw API call).
+- Session-based auth on `/v1/auth/device/approve` itself once the Dashboard is the only intended caller.
 
 ---
 

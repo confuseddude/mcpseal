@@ -9,3 +9,6 @@ __pycache__/
 .venv/
 .pytest_cache/
 .mcp-lock.json.bak
+.next/
+*.tsbuildinfo
+next-env.d.ts

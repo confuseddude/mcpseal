@@ -3,4 +3,6 @@ packages:
   - "packages/cli-node"
   - "packages/shared-types"
   - "services/ingest"
+  - "services/app-api"
+  - "apps/dashboard"
 

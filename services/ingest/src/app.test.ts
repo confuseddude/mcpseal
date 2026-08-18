@@ -9,10 +9,13 @@ function bytesToHex(b: Uint8Array): string {
 }
 
 async function setupApprovedWorkspace(app: FastifyInstance) {
+  const health = await app.inject({ method: "GET", url: "/healthz" });
+  const devWorkspaceId = health.json().devWorkspaceId as string;
+
   const startRes = await app.inject({ method: "POST", url: "/v1/auth/device/start", payload: {} });
   const { deviceCode, userCode } = startRes.json();
 
-  await app.inject({ method: "POST", url: "/v1/auth/device/approve", payload: { userCode } });
+  await app.inject({ method: "POST", url: "/v1/auth/device/approve", payload: { userCode, workspaceId: devWorkspaceId } });
 
   const pollRes = await app.inject({ method: "POST", url: "/v1/auth/device/poll", payload: { deviceCode } });
   const poll = pollRes.json();
@@ -291,9 +294,11 @@ describe("ingest app", () => {
   });
 
   it("a device code can only be consumed for an API key once", async () => {
+    const health = await app.inject({ method: "GET", url: "/healthz" });
+    const devWorkspaceId = health.json().devWorkspaceId as string;
     const startRes = await app.inject({ method: "POST", url: "/v1/auth/device/start", payload: {} });
     const { deviceCode, userCode } = startRes.json();
-    await app.inject({ method: "POST", url: "/v1/auth/device/approve", payload: { userCode } });
+    await app.inject({ method: "POST", url: "/v1/auth/device/approve", payload: { userCode, workspaceId: devWorkspaceId } });
     const first = await app.inject({ method: "POST", url: "/v1/auth/device/poll", payload: { deviceCode } });
     expect(first.json().status).toBe("approved");
     const second = await app.inject({ method: "POST", url: "/v1/auth/device/poll", payload: { deviceCode } });
