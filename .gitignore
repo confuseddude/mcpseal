@@ -1,0 +1,11 @@
+node_modules/
+dist/
+build/
+*.log
+.env
+.env.*
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.mcp-lock.json.bak

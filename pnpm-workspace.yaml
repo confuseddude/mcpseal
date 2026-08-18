@@ -1,0 +1,5 @@
+packages:
+  - "packages/cli-core"
+  - "packages/cli-node"
+  - "packages/shared-types"
+

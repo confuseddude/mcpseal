@@ -1,0 +1,31 @@
+{
+  "name": "mcplock",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "description": "MCP tool-integrity CLI - pins tool definitions and blocks rug pulls, free and local, zero account required until you opt in.",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "dist"
+  ],
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "mcplock": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node esbuild.bundle-cli.mjs",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@mcplock/cli-core": "workspace:^",
+    "@mcplock/shared-types": "workspace:^",
+    "@types/node": "^26.2.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.10"
+  }
+}

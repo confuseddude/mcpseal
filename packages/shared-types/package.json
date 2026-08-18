@@ -1,0 +1,17 @@
+{
+  "name": "@mcplock/shared-types",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Event/lockfile schemas shared with backend (build-bible.md Part 2.3, 11)",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "vitest": "^4.1.10",
+    "typescript": "^7.0.2"
+  }
+}

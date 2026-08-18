@@ -1,0 +1,43 @@
+name: Cross-language hash parity
+
+# build-bible.md Part 13: a single whitespace or key-order difference between
+# the Node and Python canonical JSON silently produces different hashes and
+# thus false-positive blocks. This gate — both languages' test suites
+# asserting against the shared test-vectors/hash-fixtures.json — exists
+# solely to catch that. Never skip it (Part 13, CLAUDE.md invariant 4).
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  ts:
+    name: cli-core / shared-types (TypeScript)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @mcplock/shared-types build
+      - run: pnpm --filter @mcplock/cli-core build
+      - run: pnpm --filter @mcplock/cli-core test
+      - run: pnpm --filter @mcplock/shared-types test
+
+  python:
+    name: cli-python
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/cli-python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e ".[dev]"
+      - run: pytest -q

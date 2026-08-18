@@ -1,0 +1,15 @@
+[project]
+name = "mcplock"
+version = "0.1.0"
+description = "mcplock CLI (Python) - MCP tool-integrity verifier"
+requires-python = ">=3.10"
+dependencies = [
+    "canonicaljson>=2.0.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0.0"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "generatedAt": "2026-08-17T00:00:00Z",
+  "generatedBy": "mcplock@0.1.0",
+  "servers": {
+    "github": {
+      "transport": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "commandHash": "sha256:9f2b…",
+      "tools": {
+        "create_issue": {
+          "hash": "sha256:a1c3…",
+          "description": "Create a new issue in a GitHub repository",
+          "approvedAt": "2026-08-17T00:00:00Z",
+          "approvedBy": "local",
+          "status": "approved"
+        },
+        "search_repositories": {
+          "hash": "sha256:77de…",
+          "description": "Search for GitHub repositories matching a query",
+          "approvedAt": "2026-08-17T00:00:00Z",
+          "approvedBy": "local",
+          "status": "approved"
+        }
+      }
+    }
+  },
+  "policy": {
+    "onDrift": "block",
+    "onUnknownTool": "block",
+    "allowNewToolsFromApprovedServer": false
+  },
+  "signature": null
+}
