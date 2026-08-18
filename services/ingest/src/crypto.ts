@@ -5,7 +5,47 @@
 // crypto-dependency rule. Never hand-roll either.
 import { ed25519 } from "@noble/curves/ed25519.js";
 import argon2 from "argon2";
-import { randomBytes } from "node:crypto";
+import { randomBytes, createHash } from "node:crypto";
+
+// build-bible.md Part 8.3: tamper-evident audit hash chain. Each event's
+// chain_hash covers its own fields plus the previous event's chain_hash,
+// so any deletion, edit, or reorder changes a hash somewhere in the
+// sequence and is detectable by recomputation (see verifyAuditChain in
+// services/app-api/src/audit.ts). The input format is deliberately a
+// plain, documented, pipe-delimited string — not a canonical-JSON
+// dependency — so an auditor can recompute it by hand from the exported
+// fields without needing this codebase.
+export const GENESIS_HASH_PREFIX = "GENESIS";
+
+export function genesisHash(workspaceId: string): string {
+  return createHash("sha256").update(`${GENESIS_HASH_PREFIX}:${workspaceId}`).digest("hex");
+}
+
+export interface ChainableEventFields {
+  eventId: string;
+  ts: string;
+  type: string;
+  server: string;
+  tool: string;
+  observedHash: string | null;
+  expectedHash: string | null;
+  clientApp: string;
+}
+
+export function computeChainHash(prevHash: string, event: ChainableEventFields): string {
+  const input = [
+    prevHash,
+    event.eventId,
+    event.ts,
+    event.type,
+    event.server,
+    event.tool,
+    event.observedHash ?? "",
+    event.expectedHash ?? "",
+    event.clientApp,
+  ].join("|");
+  return createHash("sha256").update(input).digest("hex");
+}
 
 export function verifyEd25519(signatureHex: string, messageBytes: Uint8Array, publicKeyHex: string): boolean {
   try {

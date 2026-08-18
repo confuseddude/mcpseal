@@ -11,9 +11,11 @@ import { appendEvent, readEvents, recentBlocks } from "./event-log.js";
 import { scan } from "./scan.js";
 import { setToolStatus } from "./manage.js";
 import { diffDrifted, formatDiff } from "./diff.js";
-import { login } from "./login.js";
+import { login, API_KEY_ACCOUNT } from "./login.js";
 import { shipEventsBestEffort } from "./ship-events.js";
 import { readConfig, isLoggedIn } from "./config.js";
+import { pullAndApplyPolicy } from "./policy-sync.js";
+import { getSecret } from "./keychain.js";
 
 async function main(): Promise<void> {
   const [, , command, ...rest] = process.argv;
@@ -166,9 +168,48 @@ async function main(): Promise<void> {
       }
       return;
     }
+    case "policy-pull": {
+      // build-bible.md Part 8.1 (Milestone 6 addition — see build-bible.md
+      // Change Log). Fail closed on every rejection path: never touches
+      // .mcp-lock.json unless the signature verifies against the pinned
+      // org key AND the version is newer than what's already applied.
+      const apiKeyToken = getSecret(API_KEY_ACCOUNT);
+      const result = await pullAndApplyPolicy({ apiKeyToken: apiKeyToken ?? undefined });
+      switch (result.outcome) {
+        case "applied":
+          console.log(`mcplock policy-pull: applied signed policy version ${result.version}`);
+          return;
+        case "no-newer-version":
+          console.log(`mcplock policy-pull: already on the latest policy (version ${result.currentVersion})`);
+          return;
+        case "skipped-not-logged-in":
+          console.log("mcplock policy-pull: not logged in — run `mcplock login` first");
+          return;
+        case "skipped-no-pinned-key":
+          console.error("mcplock policy-pull: no org signing key pinned — refusing to trust any policy. Run `mcplock login` again.");
+          process.exitCode = 1;
+          return;
+        case "skipped-no-policy-published":
+          console.log("mcplock policy-pull: no policy has been published for this workspace yet");
+          return;
+        case "rejected-invalid-signature":
+          console.error("mcplock policy-pull: REJECTED — signature verification failed. Existing lockfile left unchanged.");
+          process.exitCode = 1;
+          return;
+        case "rejected-malformed-response":
+          console.error("mcplock policy-pull: REJECTED — malformed response from server. Existing lockfile left unchanged.");
+          process.exitCode = 1;
+          return;
+        case "rejected-network-error":
+          console.error(`mcplock policy-pull: could not reach the server (${result.message}). Existing lockfile left unchanged.`);
+          process.exitCode = 1;
+          return;
+      }
+      return;
+    }
     default: {
       console.error(
-        `Unknown or missing command: ${command ?? "(none)"}\nUsage: mcplock init|install|uninstall|status|scan|diff|login [projectDir] | mcplock proxy <serverName> <command> [args...] | mcplock approve|deny <serverName> <toolName>`
+        `Unknown or missing command: ${command ?? "(none)"}\nUsage: mcplock init|install|uninstall|status|scan|diff|login|policy-pull [projectDir] | mcplock proxy <serverName> <command> [args...] | mcplock approve|deny <serverName> <toolName>`
       );
       process.exitCode = 1;
     }

@@ -12,3 +12,4 @@ __pycache__/
 .next/
 *.tsbuildinfo
 next-env.d.ts
+.claude/

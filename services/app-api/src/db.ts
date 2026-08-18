@@ -31,6 +31,7 @@ export interface User {
   name: string | null;
   role: Role;
   createdAt: string;
+  active: boolean;
 }
 
 export interface Session {
@@ -73,7 +74,10 @@ export function openDb(filePath: string): Database.Database {
       email TEXT NOT NULL UNIQUE,
       name TEXT,
       role TEXT NOT NULL,
-      created_at TEXT NOT NULL
+      created_at TEXT NOT NULL,
+      -- Part 6.1/8.2: SCIM deprovisioning sets this false and revokes
+      -- sessions rather than deleting the row (preserves audit history).
+      active INTEGER NOT NULL DEFAULT 1
     );
 
     CREATE TABLE IF NOT EXISTS sessions (
@@ -92,6 +96,22 @@ export function openDb(filePath: string): Database.Database {
       lockfile_json TEXT NOT NULL,
       signature TEXT,
       created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS org_signing_keys (
+      org_id TEXT PRIMARY KEY,
+      public_key TEXT NOT NULL,
+      encrypted_private_key TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS sso_configs (
+      org_id TEXT PRIMARY KEY,
+      provider TEXT NOT NULL,
+      domain TEXT NOT NULL,
+      enabled INTEGER NOT NULL DEFAULT 0,
+      scim_token_hash TEXT,
       created_at TEXT NOT NULL
     );
 
@@ -150,7 +170,15 @@ export function openDb(filePath: string): Database.Database {
       description_diff TEXT,
       client_app TEXT NOT NULL,
       severity TEXT NOT NULL,
-      ingested_at TEXT NOT NULL
+      ingested_at TEXT NOT NULL,
+      -- build-bible Part 8.3 tamper-evident audit chain: prev_hash links to
+      -- the previous event ingested for this workspace; chain_hash is
+      -- sha256(prev_hash || canonical(this event)). Populated by
+      -- services/ingest at insert time; NULL here only for rows inserted
+      -- before this column existed (none in a fresh DB).
+      prev_hash TEXT,
+      chain_hash TEXT,
+      batch_signature TEXT
     );
   `);
   return db;
@@ -176,13 +204,47 @@ export function findOrCreateOrgByDomain(db: Database.Database, domain: string): 
   return org;
 }
 
-export function findOrCreateUser(db: Database.Database, email: string, orgId: string, isFirstInOrg: boolean): User {
-  const existing = db.prepare("SELECT * FROM users WHERE email = ?").get(email) as
-    | { id: string; org_id: string; email: string; name: string | null; role: Role; created_at: string }
+export interface OrgSigningKey {
+  orgId: string;
+  publicKey: string;
+  encryptedPrivateKey: string;
+  createdAt: string;
+}
+
+export function getOrgSigningKey(db: Database.Database, orgId: string): OrgSigningKey | undefined {
+  const row = db.prepare("SELECT * FROM org_signing_keys WHERE org_id = ?").get(orgId) as
+    | { org_id: string; public_key: string; encrypted_private_key: string; created_at: string }
     | undefined;
-  if (existing) {
-    return { id: existing.id, orgId: existing.org_id, email: existing.email, name: existing.name, role: existing.role, createdAt: existing.created_at };
-  }
+  if (!row) return undefined;
+  return { orgId: row.org_id, publicKey: row.public_key, encryptedPrivateKey: row.encrypted_private_key, createdAt: row.created_at };
+}
+
+export function insertOrgSigningKey(db: Database.Database, orgId: string, publicKey: string, encryptedPrivateKey: string): void {
+  db.prepare("INSERT INTO org_signing_keys (org_id, public_key, encrypted_private_key, created_at) VALUES (?, ?, ?, ?)").run(
+    orgId,
+    publicKey,
+    encryptedPrivateKey,
+    new Date().toISOString()
+  );
+}
+
+interface UserRow {
+  id: string;
+  org_id: string;
+  email: string;
+  name: string | null;
+  role: Role;
+  created_at: string;
+  active: number;
+}
+
+function mapUserRow(row: UserRow): User {
+  return { id: row.id, orgId: row.org_id, email: row.email, name: row.name, role: row.role, createdAt: row.created_at, active: row.active === 1 };
+}
+
+export function findOrCreateUser(db: Database.Database, email: string, orgId: string, isFirstInOrg: boolean): User {
+  const existing = db.prepare("SELECT * FROM users WHERE email = ?").get(email) as UserRow | undefined;
+  if (existing) return mapUserRow(existing);
   const user: User = {
     id: randomUUID(),
     orgId,
@@ -190,8 +252,9 @@ export function findOrCreateUser(db: Database.Database, email: string, orgId: st
     name: null,
     role: isFirstInOrg ? "owner" : "member",
     createdAt: new Date().toISOString(),
+    active: true,
   };
-  db.prepare("INSERT INTO users (id, org_id, email, name, role, created_at) VALUES (?, ?, ?, ?, ?, ?)").run(
+  db.prepare("INSERT INTO users (id, org_id, email, name, role, created_at, active) VALUES (?, ?, ?, ?, ?, ?, 1)").run(
     user.id,
     user.orgId,
     user.email,
@@ -208,23 +271,38 @@ export function countUsersInOrg(db: Database.Database, orgId: string): number {
 }
 
 export function findUserById(db: Database.Database, userId: string): User | undefined {
-  const row = db.prepare("SELECT * FROM users WHERE id = ?").get(userId) as
-    | { id: string; org_id: string; email: string; name: string | null; role: Role; created_at: string }
-    | undefined;
-  if (!row) return undefined;
-  return { id: row.id, orgId: row.org_id, email: row.email, name: row.name, role: row.role, createdAt: row.created_at };
+  const row = db.prepare("SELECT * FROM users WHERE id = ?").get(userId) as UserRow | undefined;
+  return row ? mapUserRow(row) : undefined;
+}
+
+export function findUserByEmail(db: Database.Database, email: string): User | undefined {
+  const row = db.prepare("SELECT * FROM users WHERE email = ?").get(email) as UserRow | undefined;
+  return row ? mapUserRow(row) : undefined;
 }
 
 export function listUsersInOrg(db: Database.Database, orgId: string): User[] {
-  const rows = db.prepare("SELECT * FROM users WHERE org_id = ? ORDER BY created_at ASC").all(orgId) as Array<{
-    id: string;
-    org_id: string;
-    email: string;
-    name: string | null;
-    role: Role;
-    created_at: string;
-  }>;
-  return rows.map((r) => ({ id: r.id, orgId: r.org_id, email: r.email, name: r.name, role: r.role, createdAt: r.created_at }));
+  const rows = db.prepare("SELECT * FROM users WHERE org_id = ? ORDER BY created_at ASC").all(orgId) as UserRow[];
+  return rows.map(mapUserRow);
+}
+
+// build-bible.md Part 6.1/8.2 (SCIM deprovisioning): creates a user
+// directly (no login flow — SCIM provisioning is server-to-server) and
+// deactivation, which revokes access without deleting audit history.
+export function createUserViaScim(db: Database.Database, orgId: string, email: string, name: string | null, role: Role): User {
+  const user: User = { id: randomUUID(), orgId, email, name, role, createdAt: new Date().toISOString(), active: true };
+  db.prepare("INSERT INTO users (id, org_id, email, name, role, created_at, active) VALUES (?, ?, ?, ?, ?, ?, 1)").run(
+    user.id,
+    user.orgId,
+    user.email,
+    user.name,
+    user.role,
+    user.createdAt
+  );
+  return user;
+}
+
+export function setUserActive(db: Database.Database, userId: string, active: boolean): void {
+  db.prepare("UPDATE users SET active = ? WHERE id = ?").run(active ? 1 : 0, userId);
 }
 
 export function updateUserRole(db: Database.Database, userId: string, role: Role): void {
@@ -313,6 +391,71 @@ export function listEventsForWorkspaces(db: Database.Database, workspaceIds: str
   }>;
 }
 
+export interface AuditEventRow {
+  eventId: string;
+  workspaceId: string;
+  machineId: string;
+  ts: string;
+  type: string;
+  server: string;
+  tool: string;
+  observedHash: string | null;
+  expectedHash: string | null;
+  descriptionDiff: string | null;
+  clientApp: string;
+  severity: string;
+  ingestedAt: string;
+  prevHash: string;
+  chainHash: string;
+  batchSignature: string;
+}
+
+// Ordered by rowid (true insertion order), NOT `ts` — `ts` is
+// client-supplied and forgeable; the hash chain's integrity depends on
+// walking it in the order it was actually built (build-bible Part 8.3).
+export function listAuditEventsForWorkspaces(db: Database.Database, workspaceIds: string[]): AuditEventRow[] {
+  if (workspaceIds.length === 0) return [];
+  const placeholders = workspaceIds.map(() => "?").join(",");
+  const rows = db
+    .prepare(`SELECT * FROM events WHERE workspace_id IN (${placeholders}) ORDER BY rowid ASC`)
+    .all(...workspaceIds) as Array<{
+    event_id: string;
+    workspace_id: string;
+    machine_id: string;
+    ts: string;
+    type: string;
+    server: string;
+    tool: string;
+    observed_hash: string | null;
+    expected_hash: string | null;
+    description_diff: string | null;
+    client_app: string;
+    severity: string;
+    ingested_at: string;
+    prev_hash: string;
+    chain_hash: string;
+    batch_signature: string;
+  }>;
+  return rows.map((r) => ({
+    eventId: r.event_id,
+    workspaceId: r.workspace_id,
+    machineId: r.machine_id,
+    ts: r.ts,
+    type: r.type,
+    server: r.server,
+    tool: r.tool,
+    observedHash: r.observed_hash,
+    expectedHash: r.expected_hash,
+    descriptionDiff: r.description_diff,
+    clientApp: r.client_app,
+    severity: r.severity,
+    ingestedAt: r.ingested_at,
+    prevHash: r.prev_hash,
+    chainHash: r.chain_hash,
+    batchSignature: r.batch_signature,
+  }));
+}
+
 export function listApiKeysForWorkspaces(db: Database.Database, workspaceIds: string[]) {
   if (workspaceIds.length === 0) return [];
   const placeholders = workspaceIds.map(() => "?").join(",");
@@ -378,6 +521,52 @@ export function getSubscription(db: Database.Database, orgId: string) {
   if (row) return row;
   // Default (no row yet) is the free plan — matches orgs.plan default.
   return { id: "", org_id: orgId, stripe_customer_id: null, stripe_sub_id: null, plan: "free" as Plan, seats: 1, status: "active" };
+}
+
+export interface SsoConfig {
+  orgId: string;
+  provider: string;
+  domain: string;
+  enabled: boolean;
+  scimTokenHash: string | null;
+  createdAt: string;
+}
+
+export function getSsoConfig(db: Database.Database, orgId: string): SsoConfig | undefined {
+  const row = db.prepare("SELECT * FROM sso_configs WHERE org_id = ?").get(orgId) as
+    | { org_id: string; provider: string; domain: string; enabled: number; scim_token_hash: string | null; created_at: string }
+    | undefined;
+  if (!row) return undefined;
+  return { orgId: row.org_id, provider: row.provider, domain: row.domain, enabled: row.enabled === 1, scimTokenHash: row.scim_token_hash, createdAt: row.created_at };
+}
+
+export function upsertSsoConfig(db: Database.Database, orgId: string, provider: string, domain: string, enabled: boolean, scimTokenHash: string | null): void {
+  const existing = db.prepare("SELECT org_id FROM sso_configs WHERE org_id = ?").get(orgId) as { org_id: string } | undefined;
+  if (existing) {
+    db.prepare("UPDATE sso_configs SET provider = ?, domain = ?, enabled = ?, scim_token_hash = COALESCE(?, scim_token_hash) WHERE org_id = ?").run(
+      provider,
+      domain,
+      enabled ? 1 : 0,
+      scimTokenHash,
+      orgId
+    );
+  } else {
+    db.prepare("INSERT INTO sso_configs (org_id, provider, domain, enabled, scim_token_hash, created_at) VALUES (?, ?, ?, ?, ?, ?)").run(
+      orgId,
+      provider,
+      domain,
+      enabled ? 1 : 0,
+      scimTokenHash,
+      new Date().toISOString()
+    );
+  }
+}
+
+export function findOrgByScimTokenHash(db: Database.Database, scimTokenHash: string): string | undefined {
+  const row = db.prepare("SELECT org_id FROM sso_configs WHERE scim_token_hash = ? AND enabled = 1").get(scimTokenHash) as
+    | { org_id: string }
+    | undefined;
+  return row?.org_id;
 }
 
 export function findOrgIdByStripeSubId(db: Database.Database, stripeSubId: string): string | undefined {

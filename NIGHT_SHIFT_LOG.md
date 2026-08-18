@@ -4,7 +4,7 @@
 
 - Start time: 2026-08-18 (session start), repo had no git history — initialized git and committed Milestone 1-2 baseline before Night Shift work began.
 - Objective: implement Milestones 3-6 per docs/build-bible.md, autonomously, per explicit Night Shift authorization from the user (see conversation). CLAUDE.md invariants remain absolute and were not overridden.
-- Final status: IN PROGRESS
+- Final status: **Milestones 3-6 complete.** All exit criteria met with real (not simulated) end-to-end verification for each milestone, plus 197 TS + 39 Python tests (236 total) all passing, plus an adversarial security review of the most security-sensitive milestone (6) with both findings fixed in-session. Every mock/stub is explicitly documented (see each milestone's section) rather than presented as a real integration. Free-tier Milestone 1/2 behavior is unchanged and still fully passing.
 
 ---
 
@@ -117,38 +117,83 @@ None — retention-day numbers and the soft-overage behavior on payment failure 
 
 ---
 
-# Milestone 6
+# Milestone 6 — Enterprise (most security-sensitive milestone)
 
 ## Built
+- **Signed policy distribution (Part 8.1) — the highest-priority piece, built first and most heavily tested:**
+  - Every org gets an ed25519 signing keypair, generated automatically on first login (`ensureOrgSigningKey` in `services/app-api/src/app.ts`) rather than lazily at first policy — so a client can always pin a real key even before any policy has ever been published.
+  - The private key is encrypted at rest with AES-256-GCM (`services/app-api/src/org-crypto.ts`) — never stored plaintext, never returned by any API response. `POST /v1/policies` now actually signs the submitted lockfile with the org's key; `GET /v1/policy/signing-key` exposes only the (non-secret) public key for pinning.
+  - `services/ingest`: machine registration (`POST /v1/machines/register`) hands back the org's public key for the CLI to pin; a new `GET /v1/policy/current` (API-key authenticated) serves the latest signed policy.
+  - CLI (`packages/cli-node`): `login.ts` pins the org public key into config on first login and refuses to silently re-pin a different one later. New `packages/cli-node/src/policy-sync.ts` + `mcplock policy-pull` command: verifies the fetched policy's signature against the pinned key and only atomically replaces `.mcp-lock.json` if the signature verifies AND the version is newer — every other outcome (bad signature, wrong org, malformed response, network failure, no newer version) leaves the existing lockfile completely untouched. Added `mcplock policy-pull` to `docs/build-bible.md` Part 3.2 with a Change Log entry (Tasks.md), since it's a genuine command-surface addition Part 3.2 didn't anticipate when only Milestones 1-2 were in scope.
+- **Tamper-evident audit hash chain (Part 8.3):**
+  - `services/ingest`: every ingested event gets a `prev_hash`/`chain_hash` computed at insert time (`crypto.ts`'s `computeChainHash`/`genesisHash`), threaded correctly through a batch (including the idempotent-duplicate edge case — see Executive Decisions) so the chain never forks.
+  - `services/app-api`: `GET /v1/audit/export` (Enterprise-gated, admin/owner only), JSON or CSV, with the chain-verification result embedded directly in the JSON response (`services/app-api/src/audit.ts`'s `verifyAuditChain`). A standalone, dependency-free verification script (`services/app-api/scripts/verify-audit.mjs`) an auditor can run against a downloaded export without trusting this codebase at all.
+- **SSO/SCIM (Part 6.1/8.2) — deliberately scoped down, not hand-rolled SAML:** `PUT/GET /v1/enterprise/sso` (Enterprise-gated config: provider/domain/enabled, one-time SCIM token issuance) and `GET/POST/PATCH /scim/v2/Users` (SCIM-token-authenticated provisioning/deprovisioning). Deactivation immediately revokes all active sessions, not just future ones. The actual SAML/OIDC login handshake is explicitly NOT implemented — see Mocks/Stubs.
 
 ## Verified
+- **Policy-signing attack matrix — 11 dedicated tests in `packages/cli-node/src/policy-sync.test.ts`**, each asserting BOTH the outcome code AND that the on-disk lockfile is byte-for-byte unchanged on every rejection path: valid signed policy accepted and applied atomically; modified/tampered body rejected (signature no longer matches); policy signed by a *different* org's real key rejected against this org's pinned key; garbage/malformed signature hex rejected without throwing; malformed response (missing fields) rejected; replay/old version is a no-op, never a downgrade; network failure during fetch leaves the existing policy active; a request with no pinned key at all is refused before ever calling fetch. Server-side: 5 more tests in `services/app-api/src/policy-signing.test.ts` proving the actual signature is ed25519-valid against the real public key, a tampered lockfile fails verification, cross-org signatures fail, and the signing key is stable (not rotated) across policy versions.
+- **Hash-chain attack matrix — 8 dedicated tests in `services/ingest/src/app.test.ts`** (real Fastify app, real signed event batches through the actual `/v1/events` handler, reading the raw stored rows): genesis hash is deterministic and independently recomputable; every event's `prev_hash` equals the true previous event's `chain_hash`; a modified field breaks recomputation; a deleted event leaves a detectable gap; reordered/injected foreign rows break linkage; an idempotent duplicate-event retry does not fork the chain for a genuinely new event shipped alongside it (this specific case required a real fix — see Executive Decisions). Plus 7 more tests in `services/app-api/src/audit.test.ts` covering `verifyAuditChain` directly (valid/modified/deleted/reordered/injected/empty chains) and the real `GET /v1/audit/export` endpoint end-to-end, including RBAC, plan gating, and a test that tampering the stored data makes the export's own embedded verification report the break.
+- **Real, non-mocked verification-script test**: ran `services/app-api/scripts/verify-audit.mjs` against an actual export produced by the real `buildApp()` (not a hand-built fixture) — exit 0 on the valid export, exit 1 with the exact broken event identified on a tampered copy. Confirms the auditor-facing script genuinely works standalone, not just that the in-process function does.
+- **Real end-to-end login → policy-pull run** (not just unit tests): started real `app-api` + `ingest` servers sharing a dev DB, created a real org via `dev-login`, created and signed a real policy via `POST /v1/policies`, ran the actual compiled `mcplock login` (which correctly pinned the real org public key) and `mcplock policy-pull` (which fetched, verified, and atomically applied the real signed lockfile). Caught and fixed a real bug mid-run: the compiled `dist/cli.js` was stale from before the M6 login/policy-sync changes, so `orgPublicKey` came back `undefined` on the first attempt — rebuilding fixed it; this was a testing-process gap, not a product bug, and is noted so it isn't repeated.
+- **SSO/SCIM — 9 tests in `services/app-api/src/sso-scim.test.ts`**: non-Enterprise/non-admin correctly denied; SCIM token issued exactly once (re-configuring doesn't reissue it) and never leaked back via the read endpoint; unauthenticated/forged SCIM tokens rejected; a provisioned user can log in normally as a `member` (never auto-`owner`); duplicate-email provisioning rejected; **deactivation via SCIM immediately kills an already-active session** (not just future logins) — the specific property Part 6.1 calls out ("an admin firing someone must be able to kill their session now"); a SCIM token from a different org's setup cannot provision users into this org.
+- A background security-review agent was run adversarially against every file touched in this milestone specifically for fail-closed behavior, private-key handling, cross-org isolation in the new routes, hash-chain manipulation, and timing side-channels. Verdict: fail-closed behavior, private-key handling, cross-org isolation, and the hash-chain wiring (including the batch-loop "race condition" candidate, confirmed safe due to Node's synchronous run-to-completion semantics) are all sound. Two low-severity findings, both fixed in this session (see Security Review section at the end of this log for detail): (1) the event `ts` field had no length bound, unlike its siblings; (2) SCIM user provisioning didn't validate the created email's domain against the org's configured SSO domain, letting any holder of a valid SCIM token provision accounts under an arbitrary domain. Both fixed with a regression test each; full suite re-run clean afterward.
+- Full regression: 197 TS tests (shared-types 1, cli-core 49, cli-node 64, ingest 26, app-api 57) + 39 Python tests, all passing. No Milestone 1-5 behavior weakened.
 
 ## Executive Decisions
+- **Hash-chain duplicate-event edge case, found and fixed during implementation, not just tested for**: when a batch retry contains both an already-inserted duplicate event and a genuinely new one, naively advancing the in-memory `prevHash` using the *freshly recomputed* (but never-persisted) hash for the duplicate would let the next new event chain off a value that doesn't actually match what's stored in the database — silently forking the chain. Fixed by re-fetching the duplicate's *actual* stored `chain_hash` from the DB (`getChainHashForEvent`) rather than trusting the recomputation, specifically for that case.
+- `mcplock policy-pull` added as a new CLI command not originally in Part 3.2 — documented as a genuine spec addition (build-bible.md updated, Tasks.md Change Log entry added), not a silent improvisation, per CLAUDE.md's rule on lockfile/command-surface changes.
+- Chain input format is a plain, explicitly-documented pipe-delimited string (not a canonical-JSON library) specifically so an independent auditor's verification script has zero dependency on this codebase's serialization choices — the whole point of Part 8.3's "verification script the auditor can run."
+- SCIM bearer tokens are hashed with SHA-256, not argon2 (unlike workspace API keys) — a deliberate, documented distinction: these are full-entropy random 256-bit secrets, not password-shaped low-entropy secrets, so argon2's extra work factor buys nothing and only adds latency.
+- Cross-language parity (CLAUDE.md invariant 4 / build-bible Part 13) is **not** extended to Milestone 6's new signature-verification logic — `policy-sync.ts` only exists in `packages/cli-node`, matching the precedent already set in Milestones 2-3 (Python CLI has no command surface at all, a gap already flagged and deferred with the user's prior agreement). Not a new deviation, just naming it again since this is new trust-critical code.
 
 ## Spec Deviations
+None to the substance of Part 8 — the one addition (`mcplock policy-pull`) is documented above and in build-bible.md/Tasks.md as filling a real gap in Part 3.2's original command list, not changing Part 8's design.
 
 ## Mocks / Stubs
+- **SSO/SAML/OIDC login handshake**: genuinely not implemented, and deliberately so — CLAUDE.md and build-bible Part 6.1 are explicit that hand-rolling SAML/OIDC is out of bounds. What's real: the config surface (provider/domain/enabled) and full SCIM user provisioning/deprovisioning. What's missing: actually validating a SAML assertion or OIDC token from a real IdP. PRODUCTION WIRING REQUIRED: a real WorkOS (or equivalent) integration for the actual login handshake; this session's SSO config table is designed to be the thing that integration writes into, not replaced by it.
+- **MCPLOCK_MASTER_KEY** (org private-key encryption): has an insecure all-zero dev fallback, hard-gated behind `NODE_ENV !== "production"` (throws otherwise). PRODUCTION WIRING REQUIRED: a real key from a real KMS/secrets manager.
+- **Retention TTL enforcement** (carried over from Milestone 5, now more clearly relevant to audit): still filters already-fetched rows in the App API rather than an actual Event Store TTL policy — noted again here because Enterprise's "unlimited retention" claim depends on this eventually being real.
 
 ## Production Wiring Required
+- Real WorkOS (or equivalent) SAML/OIDC integration for the actual SSO login handshake.
+- Real KMS-backed `MCPLOCK_MASTER_KEY` for org private-key encryption.
+- Real Postgres + ClickHouse/Timescale (carried over from Milestones 3-4 — this milestone's data, especially the audit chain and signing keys, needs real durable storage before any of this is trustworthy in production, not just correct in dev).
 
 ---
 
 # Final Regression
 
 ## Tests Run
+- `pnpm -r test` (all TS workspaces: shared-types, cli-core, cli-node, ingest, app-api) — run after every milestone, and again after the security-review fixes at the very end.
+- `python -m pytest -q` in `packages/cli-python` — run after every milestone (untouched by Milestones 3-6, since Python CLI has no command surface beyond the Milestone 1 core library — a pre-existing, previously-flagged gap, not new).
+- `tsc --noEmit` in every TS package/service and the dashboard, after every source change.
+- Real (non-mocked) end-to-end runs: Milestone 3's rug-pull-to-Live-Feed pipeline; Milestone 4's full browser walkthrough of every dashboard page; Milestone 5's real browser Upgrade-to-Team click; Milestone 6's real login → sign → policy-pull run and the standalone `verify-audit.mjs` script against a real (and a real tampered) export.
+- One adversarial background security-review pass specifically against every Milestone 6 file (org-crypto.ts, app-api's app.ts/audit.ts/db.ts, ingest's crypto.ts/app.ts/db.ts, cli-node's policy-sync.ts/login.ts/config.ts).
 
 ## Results
+- Final tally: **197 TS tests + 39 Python tests = 236 tests, all passing.** Breakdown: shared-types 1, cli-core 49, cli-node 64, services/ingest 26, services/app-api 57, cli-python 39.
+- No Milestone 1 or 2 test was weakened, skipped, or deleted to make later milestones pass — the original 85 TS + 39 Python tests from before this session are still present and still passing, unchanged in substance.
+- Two real, non-hypothetical bugs were found via actual browser/CLI testing (not just imagined during code review) and fixed in the same session they were found: missing CORS on the App API (Milestone 4), and the device-flow workspace-binding timing bug (Milestone 4). A third class of "bug" — stale compiled `dist/cli.js` builds and `/tmp` path-mapping quirks in this Windows/git-bash environment — was correctly diagnosed as testing-process issues, not product defects, and didn't get chased as if they were.
 
 ---
 
 # Security Review
 
 ## Findings
+An adversarial background review of every Milestone 6 file, focused on fail-closed behavior, private-key handling, cross-org isolation, hash-chain manipulation, and timing side-channels, found:
+
+- **Sound**: fail-closed behavior throughout policy verification and SCIM auth; the org private signing key is never logged, returned, or stored unencrypted anywhere it was checked; cross-org isolation in the new routes (SSO config, SCIM, audit export, policy signing-key); the hash-chain wiring in the `/v1/events` batch loop, including a specific "could two events in one batch fork the chain" race-condition candidate that was confirmed safe due to Node's synchronous run-to-completion semantics within a single request handler.
+- **Finding 1 (low)**: `services/ingest/src/app.ts`'s event schema had no length bound on the `ts` field, unlike every sibling field — allowed unbounded storage per event and could cause a malformed timestamp to silently disappear from retention-filtered views via a `NaN` date comparison. **Fixed**: bounded to `.min(1).max(64)`, matching the pattern of every other string field in that schema.
+- **Finding 2 (low)**: `services/app-api/src/app.ts`'s SCIM user-provisioning endpoint (`POST /scim/v2/Users`) didn't validate that the provisioned email's domain matched the org's configured SSO domain — any holder of a valid SCIM bearer token could provision an account under an arbitrary email domain, not just the org's own. **Fixed**: added an explicit domain-match check against `sso_configs.domain`, rejecting with 400 otherwise; added a dedicated regression test (`services/app-api/src/sso-scim.test.ts`) and updated the existing cross-org isolation test to use a domain-matching email so it continues to test cross-org isolation specifically, distinct from the new domain guard.
+- Neither finding was a fail-open, authentication-bypass, or cross-org-data-leak issue. Both were fixed with a regression test in the same session, and the full suite (197 TS + 39 Python) was re-run clean afterward — see Final Regression above.
 
 ---
 
 # Morning Action Items
 
-1.
-2.
-3.
+1. **Production credentials/infrastructure** (nothing here works against real external services yet — all correctly mocked/documented, not silently faked): real Postgres, real ClickHouse or Timescale, real Stripe account + webhook secret, real WorkOS integration (both for human auth/dev-login's replacement and for the actual SAML/OIDC SSO handshake), a real KMS-backed `MCPLOCK_MASTER_KEY` for org private-key encryption.
+2. **uvx/Python CLI parity gap** (flagged since Milestone 2, still open): `cli-python` only has the Milestone 1 core library. None of init/proxy/install/uninstall/scan/approve/deny/diff/login/policy-pull exist in Python. Part 3.1's "ship two thin distributions" is still only half-built. This is a real gap before any public release, not something this session's scope covered.
+3. **Real Postgres migration tooling** (CLAUDE.md's tech stack calls for Prisma/Drizzle): every service currently uses ad-hoc `CREATE TABLE IF NOT EXISTS` against local SQLite dev files. This works for local dev but has no real migration story — needed before any of Milestones 3-6's data model touches a real database.
+4. **Dashboard-authenticated device-flow approval**: `/v1/auth/device/approve` is real but not yet called by any actual Dashboard UI (no "connect a machine" flow was built) — only reachable via the dev-auto-approve env var or a raw API call. Needed before `mcplock login` can work end-to-end without a developer manually hitting the approve endpoint.
+5. **npm/PyPI publish, signed releases** (build-bible Part 9: "sign your releases... an unsigned auto-update channel is a rug pull waiting to happen against your own users"): not attempted this session — `npm publish` was explicitly called out as irreversible/public and outside a single session's authorization in Milestone 2, and that boundary was preserved.
+6. **Fleet-size visibility cap**: build-bible Part 5.2 explicitly specs retention TTL as the billing lever implemented in Milestone 5; a fleet-size (machine-count) visibility cap is mentioned more loosely in Part 7.2/10 but was not given a concrete number anywhere in the spec, so it was not invented — worth a real product decision before Team/Enterprise pricing goes live.

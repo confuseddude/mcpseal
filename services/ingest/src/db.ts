@@ -58,6 +58,9 @@ export interface StoredEvent {
   clientApp: string;
   severity: string;
   ingestedAt: string;
+  prevHash: string;
+  chainHash: string;
+  batchSignature: string;
 }
 
 export function openDb(filePath: string): Database.Database {
@@ -108,6 +111,28 @@ export function openDb(filePath: string): Database.Database {
       expires_at TEXT NOT NULL
     );
 
+    -- Owned by services/app-api (org creation + policy CRUD); declared here
+    -- too (IF NOT EXISTS, identical shape) so ingest can serve the CLI's
+    -- policy-pull and public-key-pinning requests without proxying through
+    -- app-api. Ingest only ever READS these two tables — it never writes
+    -- org_signing_keys or policies.
+    CREATE TABLE IF NOT EXISTS org_signing_keys (
+      org_id TEXT PRIMARY KEY,
+      public_key TEXT NOT NULL,
+      encrypted_private_key TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS policies (
+      id TEXT PRIMARY KEY,
+      org_id TEXT NOT NULL,
+      version INTEGER NOT NULL,
+      lockfile_json TEXT NOT NULL,
+      signature TEXT,
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS events (
       event_id TEXT PRIMARY KEY,
       workspace_id TEXT NOT NULL,
@@ -121,7 +146,12 @@ export function openDb(filePath: string): Database.Database {
       description_diff TEXT,
       client_app TEXT NOT NULL,
       severity TEXT NOT NULL,
-      ingested_at TEXT NOT NULL
+      ingested_at TEXT NOT NULL,
+      -- build-bible Part 8.3 tamper-evident audit chain (computed here, at
+      -- the point of ingest — see crypto.ts's computeChainHash).
+      prev_hash TEXT NOT NULL,
+      chain_hash TEXT NOT NULL,
+      batch_signature TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_events_workspace_ts ON events (workspace_id, ts);
   `);
@@ -205,6 +235,33 @@ export function upsertMachine(db: Database.Database, m: Omit<Machine, "id" | "fi
   return { id, workspaceId: m.workspaceId, machineId: m.machineId, publicKey: m.publicKey, hostnameHash: m.hostnameHash, firstSeen, lastSeen: now, mcplockVersion: m.mcplockVersion };
 }
 
+export function findOrgIdForWorkspace(db: Database.Database, workspaceId: string): string | undefined {
+  const row = db.prepare("SELECT org_id FROM workspaces WHERE id = ?").get(workspaceId) as { org_id: string } | undefined;
+  return row?.org_id;
+}
+
+export function findOrgPublicKey(db: Database.Database, orgId: string): string | undefined {
+  const row = db.prepare("SELECT public_key FROM org_signing_keys WHERE org_id = ?").get(orgId) as { public_key: string } | undefined;
+  return row?.public_key;
+}
+
+export interface PolicyRow {
+  id: string;
+  orgId: string;
+  version: number;
+  lockfileJson: string;
+  signature: string | null;
+  createdAt: string;
+}
+
+export function findLatestPolicyForOrg(db: Database.Database, orgId: string): PolicyRow | undefined {
+  const row = db.prepare("SELECT * FROM policies WHERE org_id = ? ORDER BY version DESC LIMIT 1").get(orgId) as
+    | { id: string; org_id: string; version: number; lockfile_json: string; signature: string | null; created_at: string }
+    | undefined;
+  if (!row) return undefined;
+  return { id: row.id, orgId: row.org_id, version: row.version, lockfileJson: row.lockfile_json, signature: row.signature, createdAt: row.created_at };
+}
+
 export function findMachine(db: Database.Database, machineId: string): Machine | undefined {
   const row = db.prepare("SELECT * FROM machines WHERE machine_id = ?").get(machineId) as
     | { id: string; workspace_id: string; machine_id: string; public_key: string; hostname_hash: string | null; first_seen: string; last_seen: string; mcplock_version: string | null }
@@ -222,50 +279,35 @@ export function findMachine(db: Database.Database, machineId: string): Machine |
   };
 }
 
+// Returns the chain_hash of the most recently inserted event for this
+// workspace (by insertion order, via SQLite's implicit rowid — NOT by the
+// client-supplied `ts`, which isn't trustworthy ordering), or the
+// workspace's genesis hash if no events exist yet. Callers must serialize
+// batch inserts per workspace (the /v1/events handler does, by processing
+// one batch at a time synchronously against better-sqlite3) so this value
+// is never read stale mid-batch.
+export function getChainHashForEvent(db: Database.Database, eventId: string): string | undefined {
+  const row = db.prepare("SELECT chain_hash FROM events WHERE event_id = ?").get(eventId) as { chain_hash: string } | undefined;
+  return row?.chain_hash;
+}
+
+export function getLastChainHash(db: Database.Database, workspaceId: string): string | undefined {
+  const row = db.prepare("SELECT chain_hash FROM events WHERE workspace_id = ? ORDER BY rowid DESC LIMIT 1").get(workspaceId) as
+    | { chain_hash: string }
+    | undefined;
+  return row?.chain_hash;
+}
+
 // Idempotent: duplicate event_id (e.g. a retried batch) is silently ignored,
 // not an error — the whole point of eventId-based idempotency (Part 4.2).
 export function insertEventIfNew(db: Database.Database, e: StoredEvent): boolean {
   const result = db
     .prepare(
       `INSERT OR IGNORE INTO events
-       (event_id, workspace_id, machine_id, ts, type, server, tool, observed_hash, expected_hash, description_diff, client_app, severity, ingested_at)
-       VALUES (@eventId, @workspaceId, @machineId, @ts, @type, @server, @tool, @observedHash, @expectedHash, @descriptionDiff, @clientApp, @severity, @ingestedAt)`
+       (event_id, workspace_id, machine_id, ts, type, server, tool, observed_hash, expected_hash, description_diff, client_app, severity, ingested_at, prev_hash, chain_hash, batch_signature)
+       VALUES (@eventId, @workspaceId, @machineId, @ts, @type, @server, @tool, @observedHash, @expectedHash, @descriptionDiff, @clientApp, @severity, @ingestedAt, @prevHash, @chainHash, @batchSignature)`
     )
     .run(e);
   return result.changes > 0;
 }
 
-export function listEventsForWorkspace(db: Database.Database, workspaceId: string, limit = 100): StoredEvent[] {
-  const rows = db
-    .prepare("SELECT * FROM events WHERE workspace_id = ? ORDER BY ts DESC LIMIT ?")
-    .all(workspaceId, limit) as Array<{
-    event_id: string;
-    workspace_id: string;
-    machine_id: string;
-    ts: string;
-    type: string;
-    server: string;
-    tool: string;
-    observed_hash: string | null;
-    expected_hash: string | null;
-    description_diff: string | null;
-    client_app: string;
-    severity: string;
-    ingested_at: string;
-  }>;
-  return rows.map((r) => ({
-    eventId: r.event_id,
-    workspaceId: r.workspace_id,
-    machineId: r.machine_id,
-    ts: r.ts,
-    type: r.type,
-    server: r.server,
-    tool: r.tool,
-    observedHash: r.observed_hash,
-    expectedHash: r.expected_hash,
-    descriptionDiff: r.description_diff,
-    clientApp: r.client_app,
-    severity: r.severity,
-    ingestedAt: r.ingested_at,
-  }));
-}

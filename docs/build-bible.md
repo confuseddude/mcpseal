@@ -168,6 +168,10 @@ mcplock deny <tool>     # mark a tool denied
 mcplock diff            # human-readable old-vs-new description diff for any drifted tool
 mcplock login           # (Tier 2+) authenticate this machine to a workspace
 mcplock status          # show which servers/tools are protected and workspace connection state
+mcplock policy-pull     # (Tier 3, Milestone 6) fetch the org's current signed policy, verify it
+                        # against the org public key pinned at login, and atomically replace
+                        # .mcp-lock.json — only if the signature verifies AND the version is
+                        # newer. Any verification failure leaves the existing lockfile untouched.
 ```
 
 `mcplock init` and `mcplock scan` must work with zero flags, zero config, and zero account. That's the adoption contract.

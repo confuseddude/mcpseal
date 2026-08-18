@@ -6,8 +6,21 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import { z } from "zod";
 import type Database from "better-sqlite3";
-import { openDb, seedDevWorkspace, findApiKeyByKeyId, touchApiKeyLastUsed, upsertMachine, findMachine, insertEventIfNew } from "./db.js";
-import { parseApiKeyToken, verifySecret, verifyEd25519 } from "./crypto.js";
+import {
+  openDb,
+  seedDevWorkspace,
+  findApiKeyByKeyId,
+  touchApiKeyLastUsed,
+  upsertMachine,
+  findMachine,
+  insertEventIfNew,
+  getLastChainHash,
+  getChainHashForEvent,
+  findOrgIdForWorkspace,
+  findOrgPublicKey,
+  findLatestPolicyForOrg,
+} from "./db.js";
+import { parseApiKeyToken, verifySecret, verifyEd25519, computeChainHash, genesisHash } from "./crypto.js";
 import { startDeviceFlow, approveDeviceCode, pollDeviceFlow } from "./device-flow.js";
 
 const MAX_BATCH_SIZE = 500;
@@ -16,7 +29,7 @@ const RATE_LIMIT_MAX_REQUESTS = 120;
 
 const eventItemSchema = z.object({
   eventId: z.string().uuid(),
-  ts: z.string(),
+  ts: z.string().min(1).max(64),
   type: z.string().min(1).max(64),
   server: z.string().min(1).max(256),
   tool: z.string().min(1).max(256),
@@ -159,7 +172,33 @@ export function buildApp(dbPath: string): FastifyInstance {
       hostnameHash: null,
       mcplockVersion: parsed.data.mcplockVersion ?? null,
     });
-    return reply.send({ machineId: machine.machineId, workspaceId: machine.workspaceId });
+
+    // build-bible.md Part 8.1: "the client... pins the org's public key at
+    // login." Handed back here, once, at registration time — the client is
+    // responsible for storing it and never silently accepting a different
+    // one later (that's what policy-pull verification enforces).
+    const orgId = findOrgIdForWorkspace(db, parsed.data.workspaceId);
+    const orgPublicKey = orgId ? findOrgPublicKey(db, orgId) : undefined;
+
+    return reply.send({ machineId: machine.machineId, workspaceId: machine.workspaceId, orgPublicKey: orgPublicKey ?? null });
+  });
+
+  // --- Signed policy pull (Part 8.1) ---
+  app.get("/v1/policy/current", async (req, reply) => {
+    const auth = await authenticateApiKey(req.headers.authorization);
+    if (!auth) return reply.status(401).send({ error: "invalid or missing API key" });
+
+    const orgId = findOrgIdForWorkspace(db, auth.workspaceId);
+    if (!orgId) return reply.status(404).send({ error: "workspace has no org" });
+
+    const policy = findLatestPolicyForOrg(db, orgId);
+    if (!policy) return reply.status(404).send({ error: "no policy has been published for this org yet" });
+
+    return reply.send({
+      version: policy.version,
+      lockfileJson: policy.lockfileJson,
+      signature: policy.signature,
+    });
   });
 
   // --- Ingest (Part 4.2) ---
@@ -206,7 +245,23 @@ export function buildApp(dbPath: string): FastifyInstance {
     let accepted = 0;
     let duplicates = 0;
     const ingestedAt = new Date().toISOString();
+    // build-bible Part 8.3: chain each event to the previous one for this
+    // workspace. Seeded once from the DB, then threaded through the loop
+    // in memory — chaining off the DB on every iteration would let two
+    // events in the same batch both read the same "last" hash and produce
+    // a fork instead of a chain.
+    let prevHash = getLastChainHash(db, workspaceId) ?? genesisHash(workspaceId);
     for (const item of batch) {
+      const chainHash = computeChainHash(prevHash, {
+        eventId: item.eventId,
+        ts: item.ts,
+        type: item.type,
+        server: item.server,
+        tool: item.tool,
+        observedHash: item.observedHash ?? null,
+        expectedHash: item.expectedHash ?? null,
+        clientApp: item.clientApp,
+      });
       const inserted = insertEventIfNew(db, {
         eventId: item.eventId,
         workspaceId,
@@ -221,9 +276,22 @@ export function buildApp(dbPath: string): FastifyInstance {
         clientApp: item.clientApp,
         severity: severityFor(item.type),
         ingestedAt,
+        prevHash,
+        chainHash,
+        batchSignature: signature,
       });
-      if (inserted) accepted++;
-      else duplicates++;
+      if (inserted) {
+        prevHash = chainHash;
+        accepted++;
+      } else {
+        // Duplicate: our freshly-computed chainHash may not match what's
+        // actually stored (the DB's chain state could have moved between
+        // the original insert and this retry). Use the REAL stored value
+        // so the next event in this batch chains off the true history,
+        // not a value that was never actually persisted.
+        prevHash = getChainHashForEvent(db, item.eventId) ?? chainHash;
+        duplicates++;
+      }
     }
 
     return reply.status(202).send({ accepted, duplicates });

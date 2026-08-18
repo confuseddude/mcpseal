@@ -116,6 +116,9 @@ importers:
       '@mcplock/shared-types':
         specifier: workspace:^
         version: link:../../packages/shared-types
+      '@noble/curves':
+        specifier: ^2.3.0
+        version: 2.3.0
       argon2:
         specifier: ^0.45.1
         version: 0.45.1

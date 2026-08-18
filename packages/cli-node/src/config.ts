@@ -12,6 +12,11 @@ export interface McplockConfig {
   machineId: string;
   ingestUrl: string;
   lastShippedEventId?: string;
+  // build-bible.md Part 8.1: "the client pins the org's public key at
+  // login." Once set, this value must never be silently overwritten by a
+  // later login — see login.ts's pinning check.
+  orgPublicKeyHex?: string;
+  lastAppliedPolicyVersion?: number;
 }
 
 export function configPath(): string {

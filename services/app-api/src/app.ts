@@ -27,6 +27,7 @@ import {
   findApiKeyWorkspace,
   insertPolicy,
   listPoliciesForOrg,
+  listAuditEventsForWorkspaces,
   getSubscription,
   upsertSubscription,
   findSubscriptionByStripeSubId,
@@ -36,6 +37,19 @@ import {
 } from "./db.js";
 import { hasAtLeastRole } from "./rbac.js";
 import { buildBillingProvider, MockBillingProvider, type WebhookEvent } from "./billing.js";
+import { generateOrgSigningKeypair, signWithOrgKey, generateScimToken, hashScimToken } from "./org-crypto.js";
+import {
+  getOrgSigningKey,
+  insertOrgSigningKey,
+  getSsoConfig,
+  upsertSsoConfig,
+  findOrgByScimTokenHash,
+  findUserByEmail,
+  createUserViaScim,
+  setUserActive,
+  revokeAllSessionsForUser,
+} from "./db.js";
+import { verifyAuditChain, eventsToCsv } from "./audit.js";
 
 // build-bible.md Part 5.2: "Retention is a billing lever, not just an ops
 // setting: 30-day TTL on Team, configurable/unlimited on Enterprise."
@@ -47,6 +61,20 @@ const RETENTION_DAYS_BY_PLAN: Record<Plan, number | null> = { free: 7, team: 30,
 const SESSION_COOKIE = "mcplock_session";
 
 const emailSchema = z.object({ email: z.string().email() });
+
+// build-bible.md Part 8.1: policies are signed with "the org's private
+// signing key." Every org gets exactly one signing keypair, generated the
+// first time it's needed and reused thereafter — never rotated silently,
+// since a client pins this public key at login (Part 8.1) and a silent
+// rotation would make every previously-pinned client reject all future
+// policies.
+function ensureOrgSigningKey(db: Database.Database, orgId: string): string {
+  const existing = getOrgSigningKey(db, orgId);
+  if (existing) return existing.publicKey;
+  const { publicKeyHex, encryptedPrivateKey } = generateOrgSigningKeypair();
+  insertOrgSigningKey(db, orgId, publicKeyHex, encryptedPrivateKey);
+  return publicKeyHex;
+}
 
 function orgIdOf(email: string): string {
   const at = email.lastIndexOf("@");
@@ -92,6 +120,11 @@ export function buildApp(dbPath: string): FastifyInstance {
     if (!session) return null;
     const user = findUserById(db, session.userId);
     if (!user) return null;
+    // build-bible Part 6.1: "an admin firing someone must be able to kill
+    // their session now." SCIM deactivation flips this flag AND revokes
+    // sessions (belt and suspenders) — checked here too so a session
+    // created before deactivation can't keep working via some other path.
+    if (!user.active) return null;
     return { user, sessionId };
   }
 
@@ -111,6 +144,7 @@ export function buildApp(dbPath: string): FastifyInstance {
 
     const domain = orgIdOf(parsed.data.email);
     const org = findOrCreateOrgByDomain(db, domain);
+    ensureOrgSigningKey(db, org.id);
     const isFirst = countUsersInOrg(db, org.id) === 0;
     const user = findOrCreateUser(db, parsed.data.email, org.id, isFirst);
     const session = createSession(db, user.id, org.id);
@@ -226,7 +260,7 @@ export function buildApp(dbPath: string): FastifyInstance {
     return reply.send({ ok: true });
   });
 
-  // --- Policy (draft CRUD only — signing/distribution is Milestone 6) ---
+  // --- Policy (build-bible Part 8.1: signed distribution) ---
   const policySchema = z.object({ lockfileJson: z.string().min(2) });
   app.post("/v1/policies", async (req, reply) => {
     const ctx = await currentUser(req);
@@ -240,7 +274,15 @@ export function buildApp(dbPath: string): FastifyInstance {
     } catch {
       return reply.status(400).send({ error: "lockfileJson must be valid JSON" });
     }
-    const policy = insertPolicy(db, ctx.user.orgId, parsed.data.lockfileJson, null, ctx.user.id);
+
+    // Sign over exactly the bytes returned to and stored by clients — never
+    // a re-serialized reconstruction, so verification can't diverge from
+    // what was actually signed (build-bible Part 8.1/9).
+    const orgKey = getOrgSigningKey(db, ctx.user.orgId);
+    if (!orgKey) return reply.status(500).send({ error: "org has no signing key — this should never happen after login" });
+    const signature = signWithOrgKey(orgKey.encryptedPrivateKey, parsed.data.lockfileJson);
+
+    const policy = insertPolicy(db, ctx.user.orgId, parsed.data.lockfileJson, signature, ctx.user.id);
     return reply.status(201).send({ policy });
   });
 
@@ -248,6 +290,158 @@ export function buildApp(dbPath: string): FastifyInstance {
     const ctx = await currentUser(req);
     if (!ctx) return reply.status(401).send({ error: "not authenticated" });
     return reply.send({ policies: listPoliciesForOrg(db, ctx.user.orgId) });
+  });
+
+  // Public key is not secret — this is what a client pins at login (Part
+  // 8.1) and verifies every future policy pull against.
+  app.get("/v1/policy/signing-key", async (req, reply) => {
+    const ctx = await currentUser(req);
+    if (!ctx) return reply.status(401).send({ error: "not authenticated" });
+    const orgKey = getOrgSigningKey(db, ctx.user.orgId);
+    if (!orgKey) return reply.status(404).send({ error: "no signing key for this org" });
+    return reply.send({ publicKey: orgKey.publicKey });
+  });
+
+  // --- SSO config + SCIM provisioning (build-bible Part 6.1/8.2) ---
+  // MOCK / NOT a real SAML or OIDC implementation. CLAUDE.md and
+  // build-bible Part 6.1 are explicit: "Do not hand-roll SAML/OIDC" — this
+  // is only the config surface (which provider, which domain, on/off) and
+  // the SCIM user-provisioning contract, which is genuinely simple enough
+  // to implement for real. The actual login handshake (validating a SAML
+  // assertion or OIDC token from Okta/Entra/Ping) is NOT implemented and
+  // must come from a real WorkOS integration — see NIGHT_SHIFT_LOG.md.
+  const ssoConfigSchema = z.object({ provider: z.enum(["okta", "entra", "ping", "generic-saml", "generic-oidc"]), domain: z.string().min(1), enabled: z.boolean() });
+  app.put("/v1/enterprise/sso", async (req, reply) => {
+    const ctx = await currentUser(req);
+    if (!ctx) return reply.status(401).send({ error: "not authenticated" });
+    if (!requireRole(ctx.user, "admin")) return reply.status(403).send({ error: "requires admin or owner" });
+    if (getSubscription(db, ctx.user.orgId).plan !== "enterprise") {
+      return reply.status(403).send({ error: "SSO/SCIM requires the Enterprise plan" });
+    }
+    const parsed = ssoConfigSchema.safeParse((req.body as any)?.json ?? req.body);
+    if (!parsed.success) return reply.status(400).send({ error: "malformed request" });
+
+    // A SCIM token is generated once, on first enable, and never shown
+    // again — same "shown exactly once" discipline as the workspace API
+    // keys (Part 5.1).
+    const existing = getSsoConfig(db, ctx.user.orgId);
+    let scimToken: string | null = null;
+    let scimTokenHash: string | null = existing?.scimTokenHash ?? null;
+    if (!existing?.scimTokenHash) {
+      const generated = generateScimToken();
+      scimToken = generated.token;
+      scimTokenHash = generated.hash;
+    }
+    upsertSsoConfig(db, ctx.user.orgId, parsed.data.provider, parsed.data.domain, parsed.data.enabled, scimTokenHash);
+    return reply.send({ provider: parsed.data.provider, domain: parsed.data.domain, enabled: parsed.data.enabled, scimToken });
+  });
+
+  app.get("/v1/enterprise/sso", async (req, reply) => {
+    const ctx = await currentUser(req);
+    if (!ctx) return reply.status(401).send({ error: "not authenticated" });
+    if (!requireRole(ctx.user, "admin")) return reply.status(403).send({ error: "requires admin or owner" });
+    const config = getSsoConfig(db, ctx.user.orgId);
+    if (!config) return reply.send({ config: null });
+    // Never return the token hash — it's a secret-lookup value, not
+    // display data (CLAUDE.md invariant 6).
+    return reply.send({ config: { provider: config.provider, domain: config.domain, enabled: config.enabled } });
+  });
+
+  async function authenticateScim(req: FastifyRequest): Promise<string | null> {
+    const auth = req.headers.authorization;
+    if (!auth?.startsWith("Bearer ")) return null;
+    const token = auth.slice("Bearer ".length).trim();
+    const orgId = findOrgByScimTokenHash(db, hashScimToken(token));
+    return orgId ?? null;
+  }
+
+  app.get("/scim/v2/Users", async (req, reply) => {
+    const orgId = await authenticateScim(req);
+    if (!orgId) return reply.status(401).send({ error: "invalid SCIM token" });
+    const users = listUsersInOrg(db, orgId);
+    return reply.send({
+      schemas: ["urn:ietf:params:scim:api:messages:2.0:ListResponse"],
+      totalResults: users.length,
+      Resources: users.map((u) => ({ id: u.id, userName: u.email, active: u.active, emails: [{ value: u.email }] })),
+    });
+  });
+
+  const scimCreateSchema = z.object({ userName: z.string().email(), active: z.boolean().optional() });
+  app.post("/scim/v2/Users", async (req, reply) => {
+    const orgId = await authenticateScim(req);
+    if (!orgId) return reply.status(401).send({ error: "invalid SCIM token" });
+    const parsed = scimCreateSchema.safeParse((req.body as any)?.json ?? req.body);
+    if (!parsed.success) return reply.status(400).send({ error: "malformed SCIM payload" });
+
+    // Security review finding: without this check, any holder of this
+    // org's SCIM token could provision an account under an arbitrary email
+    // domain, not just the domain the org actually configured SSO for.
+    const ssoConfig = getSsoConfig(db, orgId);
+    const emailDomain = parsed.data.userName.split("@")[1]?.toLowerCase();
+    if (!ssoConfig || emailDomain !== ssoConfig.domain.toLowerCase()) {
+      return reply.status(400).send({ error: `userName domain must match the configured SSO domain (${ssoConfig?.domain ?? "none configured"})` });
+    }
+
+    const existing = findUserByEmail(db, parsed.data.userName);
+    if (existing) return reply.status(409).send({ error: "user already exists" });
+    const user = createUserViaScim(db, orgId, parsed.data.userName, null, "member");
+    return reply.status(201).send({ id: user.id, userName: user.email, active: user.active });
+  });
+
+  const scimPatchSchema = z.object({ active: z.boolean() });
+  app.patch("/scim/v2/Users/:userId", async (req, reply) => {
+    const orgId = await authenticateScim(req);
+    if (!orgId) return reply.status(401).send({ error: "invalid SCIM token" });
+    const parsed = scimPatchSchema.safeParse((req.body as any)?.json ?? req.body);
+    if (!parsed.success) return reply.status(400).send({ error: "malformed SCIM payload" });
+
+    const userId = (req.params as { userId: string }).userId;
+    const user = findUserById(db, userId);
+    if (!user || user.orgId !== orgId) return reply.status(404).send({ error: "user not found" });
+
+    setUserActive(db, userId, parsed.data.active);
+    if (!parsed.data.active) {
+      // Deprovisioning must take effect immediately, not at next session
+      // expiry (Part 6.1).
+      revokeAllSessionsForUser(db, userId);
+    }
+    return reply.send({ id: userId, active: parsed.data.active });
+  });
+
+  // --- Audit export (build-bible Part 8.3, Enterprise-gated) ---
+  app.get("/v1/audit/export", async (req, reply) => {
+    const ctx = await currentUser(req);
+    if (!ctx) return reply.status(401).send({ error: "not authenticated" });
+    if (!requireRole(ctx.user, "admin")) return reply.status(403).send({ error: "requires admin or owner" });
+
+    const plan = getSubscription(db, ctx.user.orgId).plan;
+    if (plan !== "enterprise") {
+      return reply.status(403).send({ error: "tamper-evident audit export requires the Enterprise plan" });
+    }
+
+    const format = (req.query as { format?: string }).format === "csv" ? "csv" : "json";
+    const workspaces = listWorkspacesForOrg(db, ctx.user.orgId);
+    const allEvents = listAuditEventsForWorkspaces(db, workspaces.map((w) => w.id));
+
+    // Verify per-workspace (a chain only has meaning within one workspace's
+    // sequence — see audit.ts) and include the verification result IN the
+    // export, so a tampered export is self-describing even before an
+    // auditor reruns the standalone script.
+    const byWorkspace = new Map<string, typeof allEvents>();
+    for (const e of allEvents) {
+      const list = byWorkspace.get(e.workspaceId) ?? [];
+      list.push(e);
+      byWorkspace.set(e.workspaceId, list);
+    }
+    const verification = Object.fromEntries(
+      [...byWorkspace.entries()].map(([workspaceId, events]) => [workspaceId, verifyAuditChain(workspaceId, events)])
+    );
+
+    if (format === "csv") {
+      reply.header("content-type", "text/csv");
+      return reply.send(eventsToCsv(allEvents));
+    }
+    return reply.send({ events: allEvents, verification });
   });
 
   // --- Billing (build-bible Part 10) ---

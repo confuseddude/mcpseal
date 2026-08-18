@@ -16,6 +16,12 @@ This is the working checklist. `CLAUDE.md` (repo root) is the rules. `docs/build
 ## STATUS
 
 ```
+Current milestone: 6 — MILESTONE 6 COMPLETE. Night Shift objective (Milestones 3-6) finished. Signed policy distribution (org ed25519 keypair, AES-256-GCM-encrypted private key, client-side pinning + fail-closed verification via new `mcplock policy-pull`), tamper-evident audit hash chain with a standalone auditor verification script, and Enterprise SSO config + SCIM provisioning (explicitly not hand-rolled SAML/OIDC). An adversarial security review of this milestone found 2 low-severity issues (unbounded ts field, SCIM domain-validation gap); both fixed with regression tests in-session. Full regression: 197 TS tests + 39 Python tests (236 total), all passing. See NIGHT_SHIFT_LOG.md for full detail, every mock/stub, and the Morning Action Items list of what still needs real production credentials/infrastructure.
+Current step: none — Night Shift objective complete
+Last verified working: 6.x — 16 policy-signing tests, 15 hash-chain tests, 10 SSO/SCIM tests, real end-to-end login→sign→pull run, real verify-audit.mjs run against a real and a real-tampered export, adversarial security review with both findings fixed.
+Blockers: none
+
+Previous milestone —
 Current milestone: 5 — MILESTONE 5 COMPLETE. Stripe billing (real SDK integration behind a provider interface, mock mode active until real Stripe credentials are configured), retention-tier gating (7/30/unlimited days by plan), pricing page, Settings billing UI wired end-to-end and verified in a real browser (Upgrade to Team actually flips the plan live). See NIGHT_SHIFT_LOG.md. Proceeding directly to Milestone 6 (Enterprise) — the most security-sensitive milestone, extra care on signature verification per CLAUDE.md.
 Current step: none — milestone boundary
 Last verified working: 5.x — 11 new billing tests (RBAC, fail-closed webhook signature verification, Stripe-as-source-of-truth state transitions including soft-overage on payment failure) + full real browser walkthrough of the Upgrade flow. Full regression: 144 TS tests + 39 Python tests, all passing.
@@ -162,9 +168,16 @@ Reference: Part 10.
 
 **Milestone 5 exit criteria — met:** a self-serve credit-card upgrade unlocks 30-day retention (real Stripe checkout path fully implemented; verified end-to-end via mock mode since no live Stripe account exists in this environment). 11 new tests + full regression (144 TS + 39 Python) passing.
 
-## Milestone 6 — Enterprise *(stub)*
+## Milestone 6 — Enterprise — COMPLETE (see NIGHT_SHIFT_LOG.md for full detail; most security-sensitive milestone)
 
-Reference: Part 8. Signed policy push, SSO/SCIM, tamper-evident audit export.
+Reference: Part 8, Part 9.
+
+- [x] **6.1 — Signed policy distribution.** Org ed25519 signing keypair (generated at login, private key AES-256-GCM-encrypted at rest, never returned by any API). `POST /v1/policies` signs for real; `GET /v1/policy/signing-key` / machine registration hand back the public key for client pinning. New `mcplock policy-pull` verifies against the pinned key and only atomically replaces `.mcp-lock.json` on a valid, newer, correctly-signed policy — every rejection path leaves the lockfile untouched. 16 dedicated attack-matrix tests (11 client-side, 5 server-side) plus a real end-to-end login→sign→pull run.
+- [x] **6.2 — SSO/SCIM.** Config surface + full SCIM provisioning/deprovisioning, Enterprise-gated. Explicitly does NOT hand-roll the SAML/OIDC login handshake (CLAUDE.md rule) — that remains real WorkOS-integration work. 9 tests including verified immediate session-kill on deprovisioning.
+- [x] **6.3 — Tamper-evident audit.** Hash chain computed at ingest time; `GET /v1/audit/export` (JSON/CSV, Enterprise-gated) with embedded chain verification; standalone dependency-free `verify-audit.mjs` script, real-tested against an actual (and a tampered) export. 15 dedicated tests covering valid/modified/deleted/reordered/injected chain scenarios.
+- [x] **6.4 — Security review.** Adversarial background review run against every file touched in this milestone specifically for fail-closed behavior, private-key handling, cross-org isolation, and hash-chain manipulation.
+
+**Milestone 6 exit criteria — met:** one edit produces a real signed policy that a real client fetches, verifies, and applies (or correctly rejects and preserves the last-known-good state on every attack path tested); an admin can export a verifiable, hash-chained audit trail with an independent verification script. 196 TS tests + 39 Python tests, full regression, all passing.
 
 ## Milestone 7 — PQL Engine *(stub, parallel once ingest has data)*
 
@@ -176,6 +189,7 @@ Reference: Part 4/12. Buying-signal detection job.
 
 *(Append a line here whenever a step forces a change to `docs/build-bible.md`, so there's a record of spec drift and why.)*
 
+- 2026-08-19 — Milestone 6 (Night Shift): added `mcplock policy-pull` to Part 3.2's command surface. Part 8.1 describes signed policy distribution ("each `mcplock` client polls... the current policy version... downloads the signed lockfile, verifies... and atomically replaces its local `.mcp-lock.json`") but Part 3.2's original command list, written before Milestone 6 existed, had no command to actually trigger this. Not a spec contradiction — an omission from when only Milestones 1-2 were in scope — so added the command with the same fail-closed contract Part 8.1/9 already specify, rather than silently bolting the behavior onto an existing command.
 - 2026-08-18 — Step 2.7: scoped "package for npx/uvx" down to npx/cli-node only for this pass. cli-python has only the Milestone 1 core library (canonical_json/hash/lockfile/drift) with no CLI entrypoint at all — none of init/proxy/install/uninstall/scan/approve/deny/diff exist in Python. Making `uvx mcplock` actually work requires building a full parallel Python CLI (argparse, console_scripts entry point, an MCP stdio client in Python, etc.), which is substantial new work, not a packaging step — asked the user, they chose to defer it rather than build it now. This is an open item before any real public release: Part 3.1's "ship two thin distributions" is only half-built.
 - 2026-08-17 — Step 2.3: ToolEntry (Part 2.3) extended with `description: string` — the last-approved tool description, stored alongside `hash`. Reason: Part 2.4 promises an old-vs-new description diff on drift, but a hash can't be reversed to recover what the old description said; without storing it, the diff was impossible to implement, not just unimplemented. User-approved change (asked first, per CLAUDE.md's rule on lockfile schema changes). Does not affect what gets hashed (still name+description+inputSchema per Part 2.1/2.2) or test-vectors/hash-fixtures.json.
 - 2026-08-17 — Step 2.2, two judgment calls, both flagged: (1) Part 3.3 says intercept "initialize and tools/list responses," but only tools/list responses actually carry tool definitions in MCP (initialize returns capabilities only) — implemented interception generically keyed on "does this response's result contain a `tools` array" rather than hardcoding by request method; functionally equivalent, more robust to servers that structure things slightly differently. (2) Part 3.2 shows `mcplock proxy <server>` without specifying how the proxy learns which lockfile entry to check against — defined the syntax as `mcplock proxy <serverName> <command> [args...]`, with `install` (step 2.4) expected to be what actually produces this invocation when it rewrites client configs.

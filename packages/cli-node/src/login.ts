@@ -5,7 +5,7 @@
 import { randomUUID } from "node:crypto";
 import { setSecret } from "./keychain.js";
 import { loadOrCreateMachineIdentity } from "./machine-identity.js";
-import { writeConfig, configPath as defaultConfigPath, type McplockConfig } from "./config.js";
+import { readConfig, writeConfig, configPath as defaultConfigPath, type McplockConfig } from "./config.js";
 
 export const API_KEY_ACCOUNT = "workspace-api-key";
 export const DEFAULT_INGEST_URL = process.env.MCPLOCK_INGEST_URL ?? "http://127.0.0.1:8787";
@@ -66,10 +66,29 @@ export async function login(opts: LoginOptions = {}): Promise<LoginResult> {
       body: JSON.stringify({ workspaceId: poll.workspaceId, machineId, publicKey: identity.publicKeyHex, mcplockVersion: "0.1.0" }),
     });
     if (!regRes.ok) throw new Error(`machine registration failed: HTTP ${regRes.status}`);
+    const registration = (await regRes.json()) as { orgPublicKey: string | null };
+
+    // build-bible.md Part 8.1: pin once, never silently re-pin. If a config
+    // already exists with a DIFFERENT pinned key, something is wrong
+    // (compromised org, or logging into a different workspace without
+    // explicitly logging out first) — refuse rather than quietly trusting
+    // a new key.
+    const cfgPath = opts.cfgPath ?? defaultConfigPath();
+    const existing = readConfig(cfgPath);
+    if (existing?.orgPublicKeyHex && registration.orgPublicKey && existing.orgPublicKeyHex !== registration.orgPublicKey) {
+      throw new Error(
+        "refusing to overwrite a previously pinned org signing key with a different one — run `mcplock logout` first if this is intentional"
+      );
+    }
 
     setSecret(API_KEY_ACCOUNT, poll.apiKeyToken);
-    const config: McplockConfig = { workspaceId: poll.workspaceId, machineId, ingestUrl };
-    writeConfig(config, opts.cfgPath ?? defaultConfigPath());
+    const config: McplockConfig = {
+      workspaceId: poll.workspaceId,
+      machineId,
+      ingestUrl,
+      orgPublicKeyHex: registration.orgPublicKey ?? existing?.orgPublicKeyHex,
+    };
+    writeConfig(config, cfgPath);
     return { workspaceId: poll.workspaceId, machineId };
   }
 

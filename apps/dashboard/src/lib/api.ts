@@ -102,4 +102,9 @@ export const api = {
     }),
   billingPortal: (returnUrl: string) =>
     request<{ url: string }>("/v1/billing/portal", { method: "POST", body: JSON.stringify({ returnUrl }) }),
+  auditExport: () =>
+    request<{
+      events: Array<{ eventId: string; workspaceId: string; type: string; server: string; tool: string; chainHash: string; ts: string }>;
+      verification: Record<string, { valid: boolean; eventCount: number }>;
+    }>("/v1/audit/export"),
 };
