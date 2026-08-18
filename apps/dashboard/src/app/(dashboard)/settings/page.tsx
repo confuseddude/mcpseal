@@ -127,6 +127,24 @@ export default function SettingsPage() {
             <span className="font-data text-xs text-[var(--color-text-faint)]">
               {subscription.seats} seat{subscription.seats === 1 ? "" : "s"} · {subscription.status}
             </span>
+            <span className="ml-auto flex gap-2">
+              {subscription.plan === "free" && (
+                <button
+                  onClick={() => api.checkout(window.location.href).then((r) => (window.location.href = r.url))}
+                  className="rounded-md bg-[var(--color-text)] px-3 py-1.5 text-xs font-medium text-[var(--color-bg)]"
+                >
+                  Upgrade to Team
+                </button>
+              )}
+              {subscription.plan !== "free" && (
+                <button
+                  onClick={() => api.billingPortal(window.location.href).then((r) => (window.location.href = r.url))}
+                  className="rounded-md border border-[var(--color-border)] px-3 py-1.5 text-xs text-[var(--color-text-dim)] hover:text-[var(--color-text)]"
+                >
+                  Manage billing
+                </button>
+              )}
+            </span>
           </div>
         )}
       </Section>

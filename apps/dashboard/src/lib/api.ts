@@ -95,4 +95,11 @@ export const api = {
   apiKeys: () => request<{ apiKeys: ApiKeyRow[] }>("/v1/api-keys"),
   revokeApiKey: (keyId: string) => request<{ ok: true }>(`/v1/api-keys/${keyId}`, { method: "DELETE" }),
   subscription: () => request<{ subscription: Subscription }>("/v1/billing/subscription"),
+  checkout: (returnUrl: string) =>
+    request<{ url: string; mode: "stripe" | "mock" }>("/v1/billing/checkout", {
+      method: "POST",
+      body: JSON.stringify({ plan: "team", successUrl: returnUrl, cancelUrl: returnUrl }),
+    }),
+  billingPortal: (returnUrl: string) =>
+    request<{ url: string }>("/v1/billing/portal", { method: "POST", body: JSON.stringify({ returnUrl }) }),
 };

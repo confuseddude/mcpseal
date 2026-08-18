@@ -365,6 +365,12 @@ export function listPoliciesForOrg(db: Database.Database, orgId: string): Policy
   return rows.map((r) => ({ id: r.id, orgId: r.org_id, version: r.version, lockfileJson: r.lockfile_json, signature: r.signature, createdBy: r.created_by, createdAt: r.created_at }));
 }
 
+export function findSubscriptionByStripeSubId(db: Database.Database, stripeSubId: string) {
+  return db.prepare("SELECT * FROM subscriptions WHERE stripe_sub_id = ?").get(stripeSubId) as
+    | { id: string; org_id: string; stripe_customer_id: string | null; stripe_sub_id: string | null; plan: Plan; seats: number; status: string }
+    | undefined;
+}
+
 export function getSubscription(db: Database.Database, orgId: string) {
   const row = db.prepare("SELECT * FROM subscriptions WHERE org_id = ?").get(orgId) as
     | { id: string; org_id: string; stripe_customer_id: string | null; stripe_sub_id: string | null; plan: Plan; seats: number; status: string }
@@ -372,6 +378,11 @@ export function getSubscription(db: Database.Database, orgId: string) {
   if (row) return row;
   // Default (no row yet) is the free plan — matches orgs.plan default.
   return { id: "", org_id: orgId, stripe_customer_id: null, stripe_sub_id: null, plan: "free" as Plan, seats: 1, status: "active" };
+}
+
+export function findOrgIdByStripeSubId(db: Database.Database, stripeSubId: string): string | undefined {
+  const row = db.prepare("SELECT org_id FROM subscriptions WHERE stripe_sub_id = ?").get(stripeSubId) as { org_id: string } | undefined;
+  return row?.org_id;
 }
 
 export function upsertSubscription(

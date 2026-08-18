@@ -84,19 +84,36 @@
 
 ---
 
-# Milestone 5
+# Milestone 5 — Billing + Team tier
 
 ## Built
+- `services/app-api/src/billing.ts`: a `BillingProvider` interface with two implementations — `StripeBillingProvider` (real Stripe SDK: Checkout session creation, Billing Portal session creation, `stripe.webhooks.constructEvent` signature verification) and `MockBillingProvider` (used automatically when `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`/`STRIPE_TEAM_PRICE_ID` aren't set — documented, not hidden). `buildBillingProvider()` picks whichever is configured.
+- Routes: `POST /v1/billing/checkout` (admin/owner only), `POST /v1/billing/portal` (admin/owner only), `POST /v1/billing/webhook` (Stripe-signature-verified, fails closed on any verification error), `GET /v1/billing/subscription` (existing from M4, now plan-driven for real).
+- `applyWebhookEvent()`: the one and only code path allowed to change an org's plan post-checkout, mirroring `checkout.session.completed` / `customer.subscription.updated` / `customer.subscription.deleted` / `invoice.payment_failed` into the `subscriptions` table and `orgs.plan` — Stripe is authoritative, matching Part 10 exactly. A failed payment marks the subscription `past_due` without downgrading the plan (Part 10's explicit "prefer a soft overage over a hard wall").
+- Retention-tier gating (Part 5.2's concrete billing lever, implemented literally): `GET /v1/events` now filters by plan — 7 days free (judgment call, not spec'd numerically), 30 days team (spec-exact), unlimited enterprise — computed server-side from the org's real subscription, never a client-supplied value.
+- Dashboard: public `/pricing` page ("no sales call for Team" per Part 10), Settings page wired to real Upgrade/Manage-billing buttons hitting the real checkout/portal endpoints.
 
 ## Verified
+- 11 new billing tests (27 total in app-api now): RBAC on checkout/portal (member 403s, owner succeeds); mock checkout immediately upgrades the org (since there's no real Stripe redirect to wait on) and is reported via `mode: "mock"` in the response so a real integration is distinguishable in logs/tests; webhook rejects a missing signature and a forged/mismatched signature (400, fail-closed); a verified `subscription.deleted` webhook downgrades to free + `canceled`; a verified `invoice.payment_failed` webhook sets `past_due` without touching the plan; a webhook for an unrecognized subscription ID is accepted (200, so Stripe doesn't retry-storm) but has zero effect on any org; portal fails cleanly (400) for an org with no billing account yet; retention window is reported correctly per plan (7 free / 30 team) and changes live after a real upgrade.
+- Full real browser verification (not just unit tests): rebuilt and served the dashboard for real, logged in, clicked "Upgrade to Team" on the live Settings page, and confirmed the plan flipped from `FREE · 1 seat · active` to `TEAM · 1 seat · active` with the button correctly swapping to "Manage billing" — the actual mock-checkout code path exercised end-to-end through the UI, not just asserted in a test.
+- One real (non-security) bug caught mid-testing and diagnosed correctly rather than mistaken for a product bug: `NEXT_PUBLIC_APP_API_URL` is inlined into the dashboard bundle at **build** time, not read at runtime — reusing an old build against a freshly-started app-api on a different port produced silent blank pages (401/503s to the wrong stale port). Not a defect in the app; a rebuild-before-restart requirement of Next.js itself, worth remembering for any future local testing.
+- Full regression: 144 TS tests (shared-types 1, cli-core 49, cli-node 53, ingest 14, app-api 27) + 39 Python tests, all passing.
 
 ## Executive Decisions
+- Free-tier retention set to 7 days — not given a specific number in the Build Bible (only Team's 30-day figure is spec'd). Chosen short enough to create real upgrade pressure without making the free-tier Live Feed pointless for someone evaluating before paying.
+- Mock checkout applies its outcome **synchronously and immediately** inside the `/v1/billing/checkout` handler rather than only via webhook, since there is no real Stripe account to send a webhook. This is explicitly flagged in the response (`mode: "mock"`) and in code comments — the real Stripe path only ever changes plan state via the verified webhook, exactly as Part 10 requires; the mock path's shortcut is confined to mock mode only.
+- Enterprise billing (Part 10: "Stripe Invoicing + sales-assisted, annual only") is not built as a self-serve flow — matches spec, which explicitly says this tier is sales-assisted, not a Checkout button. The Enterprise pricing-page CTA is a `mailto:` link, not a broken/fake checkout flow.
 
 ## Spec Deviations
+None — retention-day numbers and the soft-overage behavior on payment failure both match Part 5.2/Part 10's text; the one number not given in spec (free-tier retention) is called out as a judgment call above, not silently invented.
 
 ## Mocks / Stubs
+- **Stripe**: no real account/keys. `StripeBillingProvider` is fully implemented against the real SDK surface (Checkout, Billing Portal, webhook signature verification) and will activate automatically the moment `STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET`/`STRIPE_TEAM_PRICE_ID` are set — no code changes needed, only configuration. PRODUCTION WIRING REQUIRED: a real Stripe account, a Team-plan Price object, and a webhook endpoint registered in the Stripe dashboard pointing at `/v1/billing/webhook`.
 
 ## Production Wiring Required
+- Real Stripe account + `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `STRIPE_TEAM_PRICE_ID`.
+- AWS/Azure/GCP Marketplace listings (Part 10, mentioned as a differentiator for Enterprise procurement) — not attempted this session, genuinely out of scope for local dev.
+- Retention TTL is currently enforced by filtering already-fetched rows in the App API; production should push this into the Event Store's actual per-workspace TTL policy (Part 5.2) once real ClickHouse/Timescale is deployed, both for correctness at scale and so expired rows are actually deleted, not just hidden.
 
 ---
 

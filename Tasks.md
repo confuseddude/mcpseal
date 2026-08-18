@@ -16,6 +16,12 @@ This is the working checklist. `CLAUDE.md` (repo root) is the rules. `docs/build
 ## STATUS
 
 ```
+Current milestone: 5 — MILESTONE 5 COMPLETE. Stripe billing (real SDK integration behind a provider interface, mock mode active until real Stripe credentials are configured), retention-tier gating (7/30/unlimited days by plan), pricing page, Settings billing UI wired end-to-end and verified in a real browser (Upgrade to Team actually flips the plan live). See NIGHT_SHIFT_LOG.md. Proceeding directly to Milestone 6 (Enterprise) — the most security-sensitive milestone, extra care on signature verification per CLAUDE.md.
+Current step: none — milestone boundary
+Last verified working: 5.x — 11 new billing tests (RBAC, fail-closed webhook signature verification, Stripe-as-source-of-truth state transitions including soft-overage on payment failure) + full real browser walkthrough of the Upgrade flow. Full regression: 144 TS tests + 39 Python tests, all passing.
+Blockers: none
+
+Previous milestone —
 Current milestone: 4 — MILESTONE 4 COMPLETE. App API (session auth, server-side RBAC, cross-org isolation), Next.js dashboard (Live Feed/Fleet/Policy/Audit/Settings, dark ops-console design per frontend-design skill). Built under Night Shift autonomous-execution authorization; see NIGHT_SHIFT_LOG.md for full detail, mocks, and the two real bugs found and fixed via actual browser testing (missing CORS, device-flow workspace-binding timing). Proceeding directly to Milestone 5.
 Current step: none — milestone boundary
 Last verified working: 4.x — 16 new app-api tests (RBAC + 3 explicit cross-org isolation tests) + full real browser walkthrough of every dashboard page against live app-api/ingest/dashboard servers, including a real mcplock login + real rug-pull block appearing correctly in the Live Feed with the diff rendered. Full regression: 133 TS tests + 39 Python tests, all passing. All real machine state touched during e2e testing (keychain, config, temp DBs, dev server processes) cleaned up afterward.
@@ -144,9 +150,17 @@ Reference: Part 4.1, Part 6, Part 7.
 
 **Milestone 4 exit criteria — met:** a Security Lead can log in and watch blocks stream in across machines (real browser walkthrough, not a mockup). Two real bugs found via that testing (missing CORS, device-flow workspace-binding timing bug) were fixed, not glossed over. 16 new app-api tests + full regression (133 TS + 39 Python) passing.
 
-## Milestone 5 — Billing + Team tier *(stub)*
+## Milestone 5 — Billing + Team tier — COMPLETE (see NIGHT_SHIFT_LOG.md for full detail)
 
-Reference: Part 10. Stripe Checkout, plan gating on retention TTL and fleet visibility, pricing page.
+Reference: Part 10.
+
+- [x] **5.1 — Stripe integration.** `services/app-api/src/billing.ts`: `BillingProvider` interface, real `StripeBillingProvider` (Checkout, Billing Portal, webhook signature verification via `stripe.webhooks.constructEvent`), `MockBillingProvider` active until real credentials are configured (env-var gated, zero code changes needed to go live).
+- [x] **5.2 — Webhook handling, Stripe as source of truth.** `applyWebhookEvent()` is the only path that changes `orgs.plan`/`subscriptions`; fails closed on any signature verification error (400, event never applied).
+- [x] **5.3 — Plan gating.** Retention TTL enforced server-side per plan (7/30/unlimited days) on `GET /v1/events`, driven by the org's real subscription, never client-supplied.
+- [x] **5.4 — Pricing page.** Public `/pricing`, "no sales call for Team" messaging per spec text.
+- [x] **5.5 — Billing UI.** Settings page Upgrade/Manage-billing buttons, verified working end-to-end in a real browser (plan actually flips live).
+
+**Milestone 5 exit criteria — met:** a self-serve credit-card upgrade unlocks 30-day retention (real Stripe checkout path fully implemented; verified end-to-end via mock mode since no live Stripe account exists in this environment). 11 new tests + full regression (144 TS + 39 Python) passing.
 
 ## Milestone 6 — Enterprise *(stub)*
 

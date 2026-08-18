@@ -28,10 +28,21 @@ import {
   insertPolicy,
   listPoliciesForOrg,
   getSubscription,
+  upsertSubscription,
+  findSubscriptionByStripeSubId,
   type Role,
+  type Plan,
   type User,
 } from "./db.js";
 import { hasAtLeastRole } from "./rbac.js";
+import { buildBillingProvider, MockBillingProvider, type WebhookEvent } from "./billing.js";
+
+// build-bible.md Part 5.2: "Retention is a billing lever, not just an ops
+// setting: 30-day TTL on Team, configurable/unlimited on Enterprise."
+// Free-tier retention (7 days) isn't spec'd explicitly; chosen short enough
+// to create real upgrade pressure without making the free Live Feed
+// pointless. Team's 30 days matches the spec text exactly.
+const RETENTION_DAYS_BY_PLAN: Record<Plan, number | null> = { free: 7, team: 30, enterprise: null };
 
 const SESSION_COOKIE = "mcplock_session";
 
@@ -57,6 +68,23 @@ export function buildApp(dbPath: string): FastifyInstance {
     .filter(Boolean);
   app.register(cors, { origin: dashboardOrigins, credentials: true });
 
+  // Same rationale as services/ingest/src/app.ts: capture the exact raw
+  // body bytes so the Stripe webhook signature (and, incidentally, every
+  // other JSON route) can be verified/parsed against precisely what was
+  // sent, not a re-serialized reconstruction.
+  const jsonParser = (_req: unknown, body: unknown, done: (err: Error | null, result?: unknown) => void) => {
+    try {
+      const json = JSON.parse(body as string);
+      done(null, { raw: body as string, json });
+    } catch {
+      const err = new Error("malformed JSON body") as Error & { statusCode: number };
+      err.statusCode = 400;
+      done(err, undefined);
+    }
+  };
+  app.addContentTypeParser("application/json", { parseAs: "string" }, jsonParser);
+  app.addContentTypeParser("*", { parseAs: "string" }, jsonParser);
+
   async function currentUser(req: FastifyRequest): Promise<{ user: User; sessionId: string } | null> {
     const sessionId = req.cookies[SESSION_COOKIE];
     if (!sessionId) return null;
@@ -78,7 +106,7 @@ export function buildApp(dbPath: string): FastifyInstance {
   // claimed email outright — everything downstream (upsert, session,
   // cookie) is already the real production shape.
   app.post("/v1/auth/dev-login", async (req, reply) => {
-    const parsed = emailSchema.safeParse(req.body);
+    const parsed = emailSchema.safeParse((req.body as any)?.json ?? req.body);
     if (!parsed.success) return reply.status(400).send({ error: "malformed request" });
 
     const domain = orgIdOf(parsed.data.email);
@@ -126,7 +154,7 @@ export function buildApp(dbPath: string): FastifyInstance {
     if (!ctx) return reply.status(401).send({ error: "not authenticated" });
     if (!requireRole(ctx.user, "admin")) return reply.status(403).send({ error: "requires admin or owner" });
 
-    const parsed = roleSchema.safeParse(req.body);
+    const parsed = roleSchema.safeParse((req.body as any)?.json ?? req.body);
     if (!parsed.success) return reply.status(400).send({ error: "malformed request" });
 
     const target = findUserById(db, (req.params as { userId: string }).userId);
@@ -160,7 +188,18 @@ export function buildApp(dbPath: string): FastifyInstance {
     const limitParam = (req.query as { limit?: string }).limit;
     const limit = Math.min(Math.max(Number(limitParam) || 100, 1), 500);
     const workspaceIds = listWorkspacesForOrg(db, ctx.user.orgId).map((w) => w.id);
-    return reply.send({ events: listEventsForWorkspaces(db, workspaceIds, limit) });
+    const events = listEventsForWorkspaces(db, workspaceIds, limit);
+
+    // Retention-tier gating happens server-side, on every request — never
+    // trust a client to only ask for what its plan allows.
+    const plan = getSubscription(db, ctx.user.orgId).plan;
+    const retentionDays = RETENTION_DAYS_BY_PLAN[plan];
+    const filtered =
+      retentionDays === null
+        ? events
+        : events.filter((e) => Date.now() - new Date(e.ts).getTime() <= retentionDays * 24 * 60 * 60 * 1000);
+
+    return reply.send({ events: filtered, retentionDays });
   });
 
   // --- API keys (Settings) ---
@@ -194,7 +233,7 @@ export function buildApp(dbPath: string): FastifyInstance {
     if (!ctx) return reply.status(401).send({ error: "not authenticated" });
     if (!requireRole(ctx.user, "admin")) return reply.status(403).send({ error: "requires admin or owner" });
 
-    const parsed = policySchema.safeParse(req.body);
+    const parsed = policySchema.safeParse((req.body as any)?.json ?? req.body);
     if (!parsed.success) return reply.status(400).send({ error: "malformed request" });
     try {
       JSON.parse(parsed.data.lockfileJson);
@@ -211,15 +250,137 @@ export function buildApp(dbPath: string): FastifyInstance {
     return reply.send({ policies: listPoliciesForOrg(db, ctx.user.orgId) });
   });
 
-  // --- Billing (subscription read; Checkout/webhooks land in Milestone 5) ---
+  // --- Billing (build-bible Part 10) ---
+  const billing = buildBillingProvider();
+
   app.get("/v1/billing/subscription", async (req, reply) => {
     const ctx = await currentUser(req);
     if (!ctx) return reply.status(401).send({ error: "not authenticated" });
     return reply.send({ subscription: getSubscription(db, ctx.user.orgId) });
   });
 
+  const checkoutSchema = z.object({ plan: z.literal("team"), successUrl: z.string().url(), cancelUrl: z.string().url() });
+  app.post("/v1/billing/checkout", async (req, reply) => {
+    const ctx = await currentUser(req);
+    if (!ctx) return reply.status(401).send({ error: "not authenticated" });
+    if (!requireRole(ctx.user, "admin")) return reply.status(403).send({ error: "requires admin or owner" });
+
+    const parsed = checkoutSchema.safeParse((req.body as any)?.json ?? req.body);
+    if (!parsed.success) return reply.status(400).send({ error: "malformed request" });
+
+    const result = await billing.createCheckoutSession(ctx.user.orgId, parsed.data.plan, parsed.data.successUrl, parsed.data.cancelUrl);
+    if (result.mockImmediateOutcome) {
+      // Mock mode only: there is no real Stripe webhook coming, so apply
+      // the outcome the same way the webhook handler below would.
+      upsertSubscription(db, ctx.user.orgId, {
+        stripeCustomerId: result.mockImmediateOutcome.stripeCustomerId,
+        stripeSubId: result.mockImmediateOutcome.stripeSubId,
+        plan: result.mockImmediateOutcome.plan,
+        seats: 1,
+        status: "active",
+      });
+    }
+    return reply.send({ url: result.url, mode: billing.mode });
+  });
+
+  const portalSchema = z.object({ returnUrl: z.string().url() });
+  app.post("/v1/billing/portal", async (req, reply) => {
+    const ctx = await currentUser(req);
+    if (!ctx) return reply.status(401).send({ error: "not authenticated" });
+    if (!requireRole(ctx.user, "admin")) return reply.status(403).send({ error: "requires admin or owner" });
+
+    const parsed = portalSchema.safeParse((req.body as any)?.json ?? req.body);
+    if (!parsed.success) return reply.status(400).send({ error: "malformed request" });
+
+    const sub = getSubscription(db, ctx.user.orgId);
+    if (!sub.stripe_customer_id) return reply.status(400).send({ error: "no billing account yet — checkout first" });
+    const result = await billing.createPortalSession(sub.stripe_customer_id, parsed.data.returnUrl);
+    return reply.send({ url: result.url });
+  });
+
+  // Stripe is the source of truth (Part 10); this is the ONLY code path
+  // allowed to change an org's plan after initial checkout. Signature
+  // verification is mandatory and fails closed — an unverified body is
+  // never applied, matching Part 9's "any error verifying... rejects."
+  app.post("/v1/billing/webhook", async (req, reply) => {
+    const rawBody = (req.body as any)?.raw as string | undefined;
+    if (typeof rawBody !== "string") return reply.status(400).send({ error: "malformed request body" });
+
+    const signatureHeader = req.headers["stripe-signature"];
+    const signature = Array.isArray(signatureHeader) ? signatureHeader[0] : signatureHeader;
+
+    let event: WebhookEvent;
+    try {
+      event = billing.verifyWebhook(rawBody, signature);
+    } catch (err) {
+      return reply.status(400).send({ error: `webhook verification failed: ${(err as Error).message}` });
+    }
+
+    applyWebhookEvent(db, event);
+    return reply.send({ received: true });
+  });
+
   app.get("/healthz", async () => ({ ok: true }));
 
   app.decorate("mcplockDb", db);
   return app;
+}
+
+// Stripe is authoritative (Part 10): every branch here mirrors a Stripe
+// state transition into `subscriptions`/`orgs.plan`, never the reverse.
+// Unmapped subscriptions (no matching org — e.g. a stale/foreign event) are
+// silently ignored rather than throwing, since a 500 here would make
+// Stripe retry a webhook this service can never successfully act on.
+function applyWebhookEvent(db: Database.Database, event: WebhookEvent): void {
+  switch (event.type) {
+    case "checkout.session.completed": {
+      upsertSubscription(db, event.orgId, {
+        stripeCustomerId: event.stripeCustomerId,
+        stripeSubId: event.stripeSubId,
+        plan: event.plan,
+        seats: 1,
+        status: "active",
+      });
+      return;
+    }
+    case "customer.subscription.updated": {
+      const existing = findSubscriptionByStripeSubId(db, event.stripeSubId);
+      if (!existing) return;
+      upsertSubscription(db, existing.org_id, {
+        stripeCustomerId: existing.stripe_customer_id,
+        stripeSubId: existing.stripe_sub_id,
+        plan: event.plan,
+        seats: existing.seats,
+        status: event.status,
+      });
+      return;
+    }
+    case "customer.subscription.deleted": {
+      const existing = findSubscriptionByStripeSubId(db, event.stripeSubId);
+      if (!existing) return;
+      upsertSubscription(db, existing.org_id, {
+        stripeCustomerId: existing.stripe_customer_id,
+        stripeSubId: existing.stripe_sub_id,
+        plan: "free",
+        seats: existing.seats,
+        status: "canceled",
+      });
+      return;
+    }
+    case "invoice.payment_failed": {
+      const existing = findSubscriptionByStripeSubId(db, event.stripeSubId);
+      if (!existing) return;
+      // Soft overage per Part 10 ("prefer a soft overage over a hard
+      // wall"): a failed payment marks the account past_due without
+      // immediately downgrading the plan or cutting off access.
+      upsertSubscription(db, existing.org_id, {
+        stripeCustomerId: existing.stripe_customer_id,
+        stripeSubId: existing.stripe_sub_id,
+        plan: existing.plan,
+        seats: existing.seats,
+        status: "past_due",
+      });
+      return;
+    }
+  }
 }
