@@ -94,6 +94,62 @@ describe("ingest app", () => {
     expect(retryRes.json()).toEqual({ accepted: 0, duplicates: 1 });
   });
 
+  // Track A ("wedge completion"): severity must match the CLI event
+  // taxonomy (packages/cli-node/src/events.ts's DRIFT_EVENTS) for the same
+  // type, so a developer sees the same severity in the terminal and in
+  // the dashboard for the exact same event. Not part of the hash-chain
+  // input (crypto.ts's ChainableEventFields), so this is safe to assert
+  // and correct independently of chain integrity.
+  it("assigns severity matching the CLI's event taxonomy for each drift reason", async () => {
+    const { apiKeyToken, workspaceId } = await setupApprovedWorkspace(app);
+    const { privateKey, publicKeyHex } = makeMachineKeypair();
+    const machineId = randomUUID();
+    await app.inject({
+      method: "POST",
+      url: "/v1/machines/register",
+      headers: { authorization: `Bearer ${apiKeyToken}` },
+      payload: { workspaceId, machineId, publicKey: publicKeyHex, mcplockVersion: "0.1.0" },
+    });
+
+    const expected: Record<string, string> = {
+      blocked_drift: "critical",
+      blocked_error: "critical",
+      blocked_denied: "high",
+      blocked_quarantined: "high",
+      blocked_unknown: "medium",
+      allowed_unknown: "medium",
+      tool_removed: "info",
+      approved: "info",
+    };
+
+    const batch = Object.keys(expected).map((type) => ({
+      eventId: randomUUID(),
+      ts: new Date().toISOString(),
+      type,
+      server: "s",
+      tool: "t",
+      clientApp: "test",
+      mcplockVersion: "0.1.0",
+    }));
+    const body = { machineId, workspaceId, batch };
+    const raw = JSON.stringify(body);
+    const signature = bytesToHex(ed25519.sign(Buffer.from(raw, "utf-8"), privateKey));
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/v1/events",
+      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcplock-signature": signature, "content-type": "application/json" },
+      payload: raw,
+    });
+    expect(res.statusCode).toBe(202);
+
+    const db = (app as unknown as { mcplockDb: import("better-sqlite3").Database }).mcplockDb;
+    const rows = db.prepare("SELECT type, severity FROM events WHERE workspace_id = ?").all(workspaceId) as Array<{ type: string; severity: string }>;
+    for (const row of rows) {
+      expect(row.severity).toBe(expected[row.type]);
+    }
+  });
+
   it("rejects events with no Authorization header", async () => {
     const res = await app.inject({
       method: "POST",

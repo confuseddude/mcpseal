@@ -92,6 +92,7 @@ export const api = {
   machines: () => request<{ machines: MachineRow[] }>("/v1/machines"),
   policies: () => request<{ policies: PolicyRow[] }>("/v1/policies"),
   createPolicy: (lockfileJson: string) => request<{ policy: PolicyRow }>("/v1/policies", { method: "POST", body: JSON.stringify({ lockfileJson }) }),
+  policySigningKey: () => request<{ publicKey: string }>("/v1/policy/signing-key"),
   apiKeys: () => request<{ apiKeys: ApiKeyRow[] }>("/v1/api-keys"),
   revokeApiKey: (keyId: string) => request<{ ok: true }>(`/v1/api-keys/${keyId}`, { method: "DELETE" }),
   subscription: () => request<{ subscription: Subscription }>("/v1/billing/subscription"),

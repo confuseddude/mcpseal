@@ -1,36 +1,47 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api, type PolicyRow } from "@/lib/api";
+import { api, ApiError, type PolicyRow } from "@/lib/api";
 
 export default function PolicyPage() {
   const [policies, setPolicies] = useState<PolicyRow[] | null>(null);
   const [draft, setDraft] = useState('{\n  "version": 1,\n  "servers": {}\n}');
   const [error, setError] = useState<string | null>(null);
+  const [signingKey, setSigningKey] = useState<string | null>(null);
 
   function refresh() {
     api.policies().then((res) => setPolicies(res.policies));
   }
 
   useEffect(refresh, []);
+  useEffect(() => {
+    api.policySigningKey().then((res) => setSigningKey(res.publicKey)).catch(() => setSigningKey(null));
+  }, []);
 
   async function onCreate() {
     setError(null);
     try {
       await api.createPolicy(draft);
       refresh();
-    } catch {
-      setError("Couldn't save that policy — check the JSON and your permissions.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Couldn't save that policy — check the JSON and your permissions.");
     }
   }
 
   return (
     <div>
       <h1 className="text-lg font-medium text-[var(--color-text)]">Policy</h1>
-      <p className="mt-1 mb-6 max-w-2xl text-sm text-[var(--color-text-dim)]">
-        The canonical org lockfile. Signed distribution to the fleet arrives in a later milestone — for now, new
-        versions are saved unsigned, as drafts an admin can review.
+      <p className="mt-1 mb-2 max-w-2xl text-sm text-[var(--color-text-dim)]">
+        The canonical org lockfile. Every version saved here is signed with your organization's ed25519 key and
+        distributed to machines that run <span className="font-data text-[var(--color-text)]">mcplock policy-pull</span> —
+        a client only applies it if the signature verifies against the key it pinned at login, and only if it's newer
+        than what it already has.
       </p>
+      {signingKey && (
+        <p className="mb-6 font-data text-xs text-[var(--color-text-faint)]">
+          org signing key (public, pinned by clients at login): <span className="text-[var(--color-text-dim)]">{signingKey}</span>
+        </p>
+      )}
 
       <div className="mb-8 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
         <textarea

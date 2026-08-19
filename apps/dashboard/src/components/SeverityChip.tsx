@@ -1,4 +1,5 @@
 const STYLES: Record<string, string> = {
+  critical: "text-[var(--color-severity-critical)] border-[var(--color-severity-critical)]/40 bg-[var(--color-severity-critical)]/10",
   high: "text-[var(--color-severity-high)] border-[var(--color-severity-high)]/40 bg-[var(--color-severity-high)]/10",
   medium: "text-[var(--color-severity-medium)] border-[var(--color-severity-medium)]/40 bg-[var(--color-severity-medium)]/10",
   info: "text-[var(--color-severity-info)] border-[var(--color-severity-info)]/40 bg-[var(--color-severity-info)]/10",

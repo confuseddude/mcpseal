@@ -53,10 +53,19 @@ const registerMachineSchema = z.object({
   mcplockVersion: z.string().max(32).optional(),
 });
 
+// Track A ("wedge completion"): kept in sync with the CLI event taxonomy
+// (packages/cli-node/src/events.ts's DRIFT_EVENTS / packages/cli-python/
+// mcplock/events.py's DRIFT_EVENTS) so the severity a developer sees in
+// the terminal matches what an admin sees in the dashboard for the exact
+// same event type — the "same underlying security state, both surfaces"
+// requirement. Not part of the audit hash chain input (see crypto.ts's
+// ChainableEventFields), so this can be corrected without touching
+// chain-hash computation for existing or future events.
 function severityFor(type: string): string {
-  if (type === "blocked_drift" || type === "blocked_denied") return "high";
-  if (type === "blocked_unknown") return "medium";
-  if (type === "tool_removed") return "info";
+  if (type === "blocked_drift" || type === "blocked_error") return "critical";
+  if (type === "blocked_denied" || type === "blocked_quarantined") return "high";
+  if (type === "blocked_unknown" || type === "allowed_unknown") return "medium";
+  if (type === "tool_removed" || type === "approved") return "info";
   return "low";
 }
 
