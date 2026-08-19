@@ -5,6 +5,16 @@ description = "mcplock CLI (Python) - MCP tool-integrity verifier"
 requires-python = ">=3.10"
 dependencies = [
     "canonicaljson>=2.0.0",
+    # build-bible.md Part 6.2 / CLAUDE.md invariant 6: OS keychain storage
+    # for secrets (mirrors cli-node's @napi-rs/keyring). `keyring` is the
+    # standard, actively-maintained cross-platform Python library for this
+    # (Windows Credential Manager / macOS Keychain / Linux Secret Service).
+    "keyring>=25.0.0",
+    # CLAUDE.md: "never hand-rolled crypto... well-known, maintained
+    # libraries only." pyca/cryptography for ed25519 sign/verify — the
+    # de facto standard Python crypto library, equivalent in trust level
+    # to @noble/curves on the TS side.
+    "cryptography>=42.0.0",
 ]
 
 [project.optional-dependencies]
