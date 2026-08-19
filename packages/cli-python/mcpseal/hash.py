@@ -4,7 +4,7 @@
 import hashlib
 from typing import TypedDict
 
-from mcplock.canonical_json import canonicalize
+from mcpseal.canonical_json import canonicalize
 
 
 class McpTool(TypedDict):

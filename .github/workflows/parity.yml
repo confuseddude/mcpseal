@@ -23,10 +23,10 @@ jobs:
         with:
           version: 9
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @mcplock/shared-types build
-      - run: pnpm --filter @mcplock/cli-core build
-      - run: pnpm --filter @mcplock/cli-core test
-      - run: pnpm --filter @mcplock/shared-types test
+      - run: pnpm --filter @mcpseal/shared-types build
+      - run: pnpm --filter @mcpseal/cli-core build
+      - run: pnpm --filter @mcpseal/cli-core test
+      - run: pnpm --filter @mcpseal/shared-types test
 
   python:
     name: cli-python

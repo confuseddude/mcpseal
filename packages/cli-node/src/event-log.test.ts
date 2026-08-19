@@ -6,7 +6,7 @@ import { appendEvent, readEvents, recentBlocks } from "./event-log.js";
 
 const dirs: string[] = [];
 function tmpLogPath(): string {
-  const d = mkdtempSync(path.join(tmpdir(), "mcplock-eventlog-test-"));
+  const d = mkdtempSync(path.join(tmpdir(), "mcpseal-eventlog-test-"));
   dirs.push(d);
   return path.join(d, "nested", "events.jsonl"); // nested to prove mkdir -p behavior
 }
@@ -69,9 +69,9 @@ describe("appendEvent / readEvents (Part 3.4 / 4.2, Tasks.md 2.5)", () => {
 describe("recentBlocks", () => {
   it("filters to only blocked_* types and sorts newest first", () => {
     const events = [
-      { eventId: "1", ts: "2026-08-17T00:00:00Z", type: "blocked_drift" as const, server: "s", tool: "a", clientApp: "x", mcplockVersion: "0.1.0" },
-      { eventId: "2", ts: "2026-08-17T00:00:02Z", type: "approved" as const, server: "s", tool: "b", clientApp: "x", mcplockVersion: "0.1.0" },
-      { eventId: "3", ts: "2026-08-17T00:00:01Z", type: "blocked_denied" as const, server: "s", tool: "c", clientApp: "x", mcplockVersion: "0.1.0" },
+      { eventId: "1", ts: "2026-08-17T00:00:00Z", type: "blocked_drift" as const, server: "s", tool: "a", clientApp: "x", mcpsealVersion: "0.1.0" },
+      { eventId: "2", ts: "2026-08-17T00:00:02Z", type: "approved" as const, server: "s", tool: "b", clientApp: "x", mcpsealVersion: "0.1.0" },
+      { eventId: "3", ts: "2026-08-17T00:00:01Z", type: "blocked_denied" as const, server: "s", tool: "c", clientApp: "x", mcpsealVersion: "0.1.0" },
     ];
     const result = recentBlocks(events);
     expect(result.map((e) => e.eventId)).toEqual(["3", "1"]);
@@ -85,7 +85,7 @@ describe("recentBlocks", () => {
       server: "s",
       tool: "t",
       clientApp: "x",
-      mcplockVersion: "0.1.0",
+      mcpsealVersion: "0.1.0",
     }));
     expect(recentBlocks(events, 2)).toHaveLength(2);
   });

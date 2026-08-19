@@ -1,5 +1,5 @@
 {
-  "name": "@mcplock/ingest",
+  "name": "@mcpseal/ingest",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -13,7 +13,7 @@
     "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
-    "@mcplock/shared-types": "workspace:^",
+    "@mcpseal/shared-types": "workspace:^",
     "@noble/curves": "^2.3.0",
     "argon2": "^0.45.1",
     "better-sqlite3": "^13.0.3",

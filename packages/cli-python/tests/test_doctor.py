@@ -4,10 +4,10 @@ import json
 import os
 import sys
 
-from mcplock.config import write_config
-from mcplock.doctor import format_doctor_report, run_doctor
-from mcplock.http_client import HttpResponse
-from mcplock.init import init as init_cmd
+from mcpseal.config import write_config
+from mcpseal.doctor import format_doctor_report, run_doctor
+from mcpseal.http_client import HttpResponse
+from mcpseal.init import init as init_cmd
 
 STUB_SERVER = os.path.join(os.path.dirname(__file__), "test_fixtures", "stub_server.py")
 PY = sys.executable
@@ -28,7 +28,7 @@ def write_mcp_json(tmp_path):
 def test_healthy_install_reports_all_local_ok(tmp_path):
     write_mcp_json(tmp_path)
     init_cmd(str(tmp_path))
-    (tmp_path / ".mcp.json.mcplock-backup").write_text("{}", encoding="utf-8")
+    (tmp_path / ".mcp.json.mcpseal-backup").write_text("{}", encoding="utf-8")
 
     report = run_doctor(str(tmp_path), **paths(tmp_path))
     lockfile_check = next(c for c in report.checks if c.name == "Lockfile")
@@ -40,7 +40,7 @@ def test_missing_lockfile_flagged_with_init_remediation(tmp_path):
     report = run_doctor(str(tmp_path), **paths(tmp_path))
     lockfile_check = next(c for c in report.checks if c.name == "Lockfile")
     assert lockfile_check.ok is False
-    assert "mcplock init" in lockfile_check.remediation
+    assert "mcpseal init" in lockfile_check.remediation
     assert report.allLocalOk is False
 
 
@@ -49,13 +49,13 @@ def test_proxy_not_installed_flagged_with_install_remediation(tmp_path):
     report = run_doctor(str(tmp_path), **paths(tmp_path))
     proxy_check = next(c for c in report.checks if c.name == "Proxy installed")
     assert proxy_check.ok is False
-    assert "mcplock install" in proxy_check.remediation
+    assert "mcpseal install" in proxy_check.remediation
 
 
 def test_control_plane_unreachable_never_degrades_local_health(tmp_path):
     write_mcp_json(tmp_path)
     init_cmd(str(tmp_path))
-    (tmp_path / ".mcp.json.mcplock-backup").write_text("{}", encoding="utf-8")
+    (tmp_path / ".mcp.json.mcpseal-backup").write_text("{}", encoding="utf-8")
     p = paths(tmp_path)
     write_config({"workspaceId": "w1", "machineId": "m1", "ingestUrl": "http://127.0.0.1:1"}, p["cfg_path"])
 
@@ -90,5 +90,5 @@ def test_control_plane_reachable_when_healthy(tmp_path):
 def test_format_doctor_report_shows_marks_and_summary(tmp_path):
     report = run_doctor(str(tmp_path), **paths(tmp_path))
     text = format_doctor_report(report)
-    assert "MCPLOCK DOCTOR" in text
+    assert "MCPSEAL DOCTOR" in text
     assert "DEGRADED" in text

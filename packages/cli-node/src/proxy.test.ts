@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { hashTool } from "@mcplock/cli-core";
-import type { Lockfile } from "@mcplock/shared-types";
+import { hashTool } from "@mcpseal/cli-core";
+import type { Lockfile } from "@mcpseal/shared-types";
 import { filterToolsListResult } from "./proxy.js";
 import type { McpToolDefinition } from "./mcp-client.js";
 
@@ -28,7 +28,7 @@ function lockfileWith(serverName: string): Lockfile {
   return {
     version: 1,
     generatedAt: "2026-08-17T00:00:00Z",
-    generatedBy: "mcplock@test",
+    generatedBy: "mcpseal@test",
     servers: {
       [serverName]: {
         transport: "stdio",

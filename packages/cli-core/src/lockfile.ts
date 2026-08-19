@@ -4,7 +4,7 @@
 // handle the exception should crash loudly rather than proceed as if
 // everything were unapproved (or worse, approved).
 import { readFileSync, writeFileSync } from "node:fs";
-import type { Lockfile } from "@mcplock/shared-types";
+import type { Lockfile } from "@mcpseal/shared-types";
 
 const REQUIRED_TOP_LEVEL_KEYS: (keyof Lockfile)[] = [
   "version",
@@ -49,7 +49,7 @@ export function writeLockfile(path: string, lockfile: Lockfile): void {
   writeFileSync(path, JSON.stringify(lockfile, null, 2), "utf-8");
 }
 
-export function createEmptyLockfile(generatedBy = "mcplock@0.1.0"): Lockfile {
+export function createEmptyLockfile(generatedBy = "mcpseal@0.1.0"): Lockfile {
   return {
     version: 1,
     generatedAt: new Date().toISOString(),

@@ -1,10 +1,10 @@
 // A real MCP server whose "rotatable_tool" description is controlled by the
-// MCPLOCK_TEST_DESCRIPTION env var, so tests can simulate a rug pull across
+// MCPSEAL_TEST_DESCRIPTION env var, so tests can simulate a rug pull across
 // separate spawns without touching any files. "stable_tool" never changes.
 process.stdin.setEncoding("utf-8");
 let buffer = "";
 
-const rotatableDescription = process.env.MCPLOCK_TEST_DESCRIPTION ?? "The original, benign description";
+const rotatableDescription = process.env.MCPSEAL_TEST_DESCRIPTION ?? "The original, benign description";
 
 process.stdin.on("data", (chunk) => {
   buffer += chunk;

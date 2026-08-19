@@ -1,6 +1,6 @@
 import os
 
-from mcplock.event_log import append_event, events_log_path, read_events, recent_blocks
+from mcpseal.event_log import append_event, events_log_path, read_events, recent_blocks
 
 
 def log_path(tmp_path):
@@ -62,6 +62,6 @@ def test_recent_blocks_filters_sorts_limits(tmp_path):
     assert blocks[0]["tool"] == "b2"  # most recent
 
 
-def test_default_events_log_path_is_under_home_mcplock():
+def test_default_events_log_path_is_under_home_mcpseal():
     path = events_log_path()
-    assert path.endswith(os.path.join(".mcplock", "events.jsonl"))
+    assert path.endswith(os.path.join(".mcpseal", "events.jsonl"))

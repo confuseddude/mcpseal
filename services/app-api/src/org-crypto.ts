@@ -4,7 +4,7 @@
 // plaintext dotfile, log line, or committed file") applies here too: the
 // private key is encrypted at rest with AES-256-GCM, never stored plain.
 //
-// PRODUCTION WIRING REQUIRED: MCPLOCK_MASTER_KEY must be a real secret
+// PRODUCTION WIRING REQUIRED: MCPSEAL_MASTER_KEY must be a real secret
 // from a real KMS/secrets-manager in production. The dev fallback below is
 // clearly insecure and only exists so local dev doesn't require operator
 // setup — it must never be reachable in a deployed environment.
@@ -12,14 +12,14 @@ import { createCipheriv, createDecipheriv, randomBytes, createHash } from "node:
 import { ed25519 } from "@noble/curves/ed25519.js";
 
 function getMasterKey(): Buffer {
-  const hex = process.env.MCPLOCK_MASTER_KEY;
+  const hex = process.env.MCPSEAL_MASTER_KEY;
   if (hex) {
     const key = Buffer.from(hex, "hex");
-    if (key.length !== 32) throw new Error("MCPLOCK_MASTER_KEY must be 32 bytes (64 hex chars)");
+    if (key.length !== 32) throw new Error("MCPSEAL_MASTER_KEY must be 32 bytes (64 hex chars)");
     return key;
   }
   if (process.env.NODE_ENV === "production") {
-    throw new Error("MCPLOCK_MASTER_KEY is required in production — refusing to use an insecure dev default");
+    throw new Error("MCPSEAL_MASTER_KEY is required in production — refusing to use an insecure dev default");
   }
   // Deterministic ONLY for local dev convenience (so restarting the dev
   // server against the same SQLite file doesn't orphan already-encrypted

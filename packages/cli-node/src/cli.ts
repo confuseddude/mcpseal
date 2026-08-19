@@ -7,7 +7,7 @@
 // decision or the exact text of existing thrown errors (tests assert on
 // those substrings).
 import path from "node:path";
-import { readLockfile } from "@mcplock/cli-core";
+import { readLockfile } from "@mcpseal/cli-core";
 import { init } from "./init.js";
 import { runProxy } from "./proxy.js";
 import { install, uninstall } from "./install.js";
@@ -48,20 +48,20 @@ async function main(): Promise<void> {
       const projectDir = rest[0] ?? process.cwd();
       const result = await init({ projectDir });
       console.log(
-        `mcplock init: wrote ${result.lockfilePath} (${result.serverCount} server(s), ${result.toolCount} tool(s) approved)`
+        `mcpseal init: wrote ${result.lockfilePath} (${result.serverCount} server(s), ${result.toolCount} tool(s) approved)`
       );
       return;
     }
     case "proxy": {
-      // Judgment call (Tasks.md 2.2 Change Log): Part 3.2 shows `mcplock
+      // Judgment call (Tasks.md 2.2 Change Log): Part 3.2 shows `mcpseal
       // proxy <server>` but doesn't specify how the proxy learns which
       // lockfile entry to check against when it only receives the launch
-      // command. Syntax here: `mcplock proxy <serverName> <command> [args...]`
+      // command. Syntax here: `mcpseal proxy <serverName> <command> [args...]`
       // — `install` (step 2.4) will be the thing that rewrites client
       // configs to invoke it this way, embedding the lockfile's server key.
       const [serverName, command_, ...serverArgs] = rest;
       if (!serverName || !command_) {
-        console.error("Usage: mcplock proxy <serverName> <command> [args...]");
+        console.error("Usage: mcpseal proxy <serverName> <command> [args...]");
         process.exitCode = 1;
         return;
       }
@@ -109,7 +109,7 @@ async function main(): Promise<void> {
           });
           // Opt-in only (CLAUDE.md invariant 2): shipEvents() checks
           // isLoggedIn() first and is a total no-op — zero network calls —
-          // if the user never ran `mcplock login`. Fire-and-forget so a
+          // if the user never ran `mcpseal login`. Fire-and-forget so a
           // shipping failure or slow network never delays the block itself,
           // which has already happened by this point.
           shipEventsBestEffort();
@@ -121,13 +121,13 @@ async function main(): Promise<void> {
     case "install": {
       const projectDir = rest[0] ?? process.cwd();
       const result = install(projectDir);
-      console.log(`mcplock install: rewrote ${result.configPath} (${result.serverCount} server(s)), backup at ${result.backupPath}`);
+      console.log(`mcpseal install: rewrote ${result.configPath} (${result.serverCount} server(s)), backup at ${result.backupPath}`);
       return;
     }
     case "uninstall": {
       const projectDir = rest[0] ?? process.cwd();
       const result = uninstall(projectDir);
-      console.log(`mcplock uninstall: restored ${result.configPath} from backup`);
+      console.log(`mcpseal uninstall: restored ${result.configPath} from backup`);
       return;
     }
     case "scan": {
@@ -167,7 +167,7 @@ async function main(): Promise<void> {
     case "deny": {
       const [serverName, toolName] = rest;
       if (!serverName || !toolName) {
-        console.error(`Usage: mcplock ${command} <serverName> <toolName>`);
+        console.error(`Usage: mcpseal ${command} <serverName> <toolName>`);
         process.exitCode = 1;
         return;
       }
@@ -176,9 +176,9 @@ async function main(): Promise<void> {
       // Approve/deny only ever change the LOCAL lockfile (CLAUDE.md: never
       // hardcode plan/policy logic client-side) — say so explicitly so this
       // is never confused with organization-wide policy, which only an
-      // admin can push via the Control Plane and `mcplock policy-pull`.
+      // admin can push via the Control Plane and `mcpseal policy-pull`.
       console.log(
-        `mcplock ${command}: ${result.serverName}/${result.toolName} is now "${result.status}" (${result.hash}) — local lockfile only, not organization policy`
+        `mcpseal ${command}: ${result.serverName}/${result.toolName} is now "${result.status}" (${result.hash}) — local lockfile only, not organization policy`
       );
       return;
     }
@@ -186,14 +186,14 @@ async function main(): Promise<void> {
       const projectDir = rest[0] ?? process.cwd();
       const diffs = await diffDrifted(projectDir);
       if (diffs.length === 0) {
-        console.log("mcplock diff: no drifted tools.");
+        console.log("mcpseal diff: no drifted tools.");
         return;
       }
       for (const d of diffs) {
         console.log(formatDiff(d));
         console.log("  next:");
-        console.log(`    mcplock approve ${d.serverName} ${d.toolName}   # only after reviewing the change above`);
-        console.log(`    mcplock deny ${d.serverName} ${d.toolName}`);
+        console.log(`    mcpseal approve ${d.serverName} ${d.toolName}   # only after reviewing the change above`);
+        console.log(`    mcpseal deny ${d.serverName} ${d.toolName}`);
         console.log("");
       }
       return;
@@ -221,17 +221,17 @@ async function main(): Promise<void> {
     }
     case "login": {
       if (isLoggedIn()) {
-        console.log("mcplock login: already logged in. Run `mcplock logout` first to switch workspaces.");
+        console.log("mcpseal login: already logged in. Run `mcpseal logout` first to switch workspaces.");
         return;
       }
       try {
         const result = await login({
           onWaitingForApproval: (userCode) => {
-            console.log(`mcplock login: go approve this device — user code: ${userCode}`);
-            console.log("mcplock login: waiting for approval...");
+            console.log(`mcpseal login: go approve this device — user code: ${userCode}`);
+            console.log("mcpseal login: waiting for approval...");
           },
         });
-        console.log(`mcplock login: connected to workspace ${result.workspaceId} (machine ${result.machineId})`);
+        console.log(`mcpseal login: connected to workspace ${result.workspaceId} (machine ${result.machineId})`);
       } catch (err) {
         printClassifiedError(err);
         process.exitCode = 1;
@@ -241,12 +241,12 @@ async function main(): Promise<void> {
     case "logout": {
       // Reverses login: clears the non-secret config AND both keychain
       // secrets (the workspace API key and the machine's ed25519 private
-      // key). A fresh `mcplock login` afterward creates a brand-new
+      // key). A fresh `mcpseal login` afterward creates a brand-new
       // machine identity rather than reusing a possibly-compromised one.
       clearConfig();
       deleteSecret(API_KEY_ACCOUNT);
       deleteSecret(PRIVATE_KEY_ACCOUNT);
-      console.log("mcplock logout: cleared workspace connection and local credentials. Local enforcement is unaffected.");
+      console.log("mcpseal logout: cleared workspace connection and local credentials. Local enforcement is unaffected.");
       return;
     }
     case "policy-pull": {
@@ -277,7 +277,7 @@ async function main(): Promise<void> {
     }
     default: {
       console.error(
-        `Unknown or missing command: ${command ?? "(none)"}\nUsage: mcplock init|install|uninstall|status|doctor|scan|diff|login|logout|policy-pull [projectDir] [--json] | mcplock proxy <serverName> <command> [args...] | mcplock approve|deny <serverName> <toolName>`
+        `Unknown or missing command: ${command ?? "(none)"}\nUsage: mcpseal init|install|uninstall|status|doctor|scan|diff|login|logout|policy-pull [projectDir] [--json] | mcpseal proxy <serverName> <command> [args...] | mcpseal approve|deny <serverName> <toolName>`
       );
       process.exitCode = 1;
     }

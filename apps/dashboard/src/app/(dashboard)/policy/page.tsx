@@ -33,7 +33,7 @@ export default function PolicyPage() {
       <h1 className="text-lg font-medium text-[var(--color-text)]">Policy</h1>
       <p className="mt-1 mb-2 max-w-2xl text-sm text-[var(--color-text-dim)]">
         The canonical org lockfile. Every version saved here is signed with your organization's ed25519 key and
-        distributed to machines that run <span className="font-data text-[var(--color-text)]">mcplock policy-pull</span> —
+        distributed to machines that run <span className="font-data text-[var(--color-text)]">mcpseal policy-pull</span> —
         a client only applies it if the signature verifies against the key it pinned at login, and only if it's newer
         than what it already has.
       </p>

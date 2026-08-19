@@ -2,8 +2,8 @@ import re
 
 import pytest
 
-from mcplock.keychain import delete_secret
-from mcplock.machine_identity import PRIVATE_KEY_ACCOUNT, load_or_create_machine_identity, sign_with_machine_key
+from mcpseal.keychain import delete_secret
+from mcpseal.machine_identity import PRIVATE_KEY_ACCOUNT, load_or_create_machine_identity, sign_with_machine_key
 
 
 @pytest.fixture(autouse=True)

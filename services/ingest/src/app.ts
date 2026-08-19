@@ -37,7 +37,7 @@ const eventItemSchema = z.object({
   expectedHash: z.string().max(128).optional(),
   descriptionDiff: z.string().max(8192).optional(),
   clientApp: z.string().max(128),
-  mcplockVersion: z.string().max(32),
+  mcpsealVersion: z.string().max(32),
 });
 
 const eventsBodySchema = z.object({
@@ -50,12 +50,12 @@ const registerMachineSchema = z.object({
   workspaceId: z.string().uuid(),
   machineId: z.string().uuid(),
   publicKey: z.string().regex(/^[0-9a-fA-F]{64}$/, "publicKey must be 32-byte hex"),
-  mcplockVersion: z.string().max(32).optional(),
+  mcpsealVersion: z.string().max(32).optional(),
 });
 
 // Track A ("wedge completion"): kept in sync with the CLI event taxonomy
 // (packages/cli-node/src/events.ts's DRIFT_EVENTS / packages/cli-python/
-// mcplock/events.py's DRIFT_EVENTS) so the severity a developer sees in
+// mcpseal/events.py's DRIFT_EVENTS) so the severity a developer sees in
 // the terminal matches what an admin sees in the dashboard for the exact
 // same event type — the "same underlying security state, both surfaces"
 // requirement. Not part of the audit hash chain input (see crypto.ts's
@@ -134,7 +134,7 @@ export function buildApp(dbPath: string): FastifyInstance {
     // auto-approves against a single hardcoded dev workspace. In
     // production the real approve call (below) supplies the approving
     // user's actual org workspace instead.
-    if (process.env.MCPLOCK_DEV_AUTO_APPROVE_DEVICE === "1") {
+    if (process.env.MCPSEAL_DEV_AUTO_APPROVE_DEVICE === "1") {
       approveDeviceCode(db, result.userCode, devWorkspace.id);
     }
     return reply.send(result);
@@ -179,7 +179,7 @@ export function buildApp(dbPath: string): FastifyInstance {
       machineId: parsed.data.machineId,
       publicKey: parsed.data.publicKey.toLowerCase(),
       hostnameHash: null,
-      mcplockVersion: parsed.data.mcplockVersion ?? null,
+      mcpsealVersion: parsed.data.mcpsealVersion ?? null,
     });
 
     // build-bible.md Part 8.1: "the client... pins the org's public key at
@@ -240,7 +240,7 @@ export function buildApp(dbPath: string): FastifyInstance {
       return reply.status(403).send({ error: "unknown machine for this workspace" });
     }
 
-    const signature = req.headers["x-mcplock-signature"];
+    const signature = req.headers["x-mcpseal-signature"];
     if (typeof signature !== "string" || signature.length === 0) {
       return reply.status(401).send({ error: "missing signature" });
     }
@@ -306,7 +306,7 @@ export function buildApp(dbPath: string): FastifyInstance {
     return reply.status(202).send({ accepted, duplicates });
   });
 
-  app.decorate("mcplockDb", db);
-  app.decorate("mcplockDevWorkspace", devWorkspace);
+  app.decorate("mcpsealDb", db);
+  app.decorate("mcpsealDevWorkspace", devWorkspace);
   return app;
 }

@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from mcplock.hash import hash_tool
+from mcpseal.hash import hash_tool
 
 FIXTURES_PATH = Path(__file__).resolve().parents[3] / "test-vectors" / "hash-fixtures.json"
 FIXTURES = json.loads(FIXTURES_PATH.read_text(encoding="utf-8"))

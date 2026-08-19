@@ -12,30 +12,30 @@ import os
 import sys
 import threading
 
-from mcplock.config import clear_config, is_logged_in, read_config
-from mcplock.diff import diff_drifted, format_diff
-from mcplock.doctor import format_doctor_report, run_doctor
-from mcplock.event_log import append_event
-from mcplock.events import classify_thrown, describe_drift_reason, describe_policy_outcome, format_event_block
-from mcplock.init import init as init_cmd
-from mcplock.install import install as install_cmd
-from mcplock.install import uninstall as uninstall_cmd
-from mcplock.keychain import delete_secret, get_secret
-from mcplock.lockfile import read_lockfile
-from mcplock.login import API_KEY_ACCOUNT, LoginError, login as login_cmd
-from mcplock.machine_identity import PRIVATE_KEY_ACCOUNT
-from mcplock.manage import set_tool_status
-from mcplock.policy_sync import pull_and_apply_policy
-from mcplock.proxy import run_proxy
-from mcplock.scan import scan as scan_cmd
-from mcplock.ship_events import ship_events_best_effort
-from mcplock.status import build_status_report, format_status_report
+from mcpseal.config import clear_config, is_logged_in, read_config
+from mcpseal.diff import diff_drifted, format_diff
+from mcpseal.doctor import format_doctor_report, run_doctor
+from mcpseal.event_log import append_event
+from mcpseal.events import classify_thrown, describe_drift_reason, describe_policy_outcome, format_event_block
+from mcpseal.init import init as init_cmd
+from mcpseal.install import install as install_cmd
+from mcpseal.install import uninstall as uninstall_cmd
+from mcpseal.keychain import delete_secret, get_secret
+from mcpseal.lockfile import read_lockfile
+from mcpseal.login import API_KEY_ACCOUNT, LoginError, login as login_cmd
+from mcpseal.machine_identity import PRIVATE_KEY_ACCOUNT
+from mcpseal.manage import set_tool_status
+from mcpseal.policy_sync import pull_and_apply_policy
+from mcpseal.proxy import run_proxy
+from mcpseal.scan import scan as scan_cmd
+from mcpseal.ship_events import ship_events_best_effort
+from mcpseal.status import build_status_report, format_status_report
 
 USAGE = (
     "Unknown or missing command: {command}\n"
-    "Usage: mcplock init|install|uninstall|status|doctor|scan|diff|login|logout|policy-pull [projectDir] [--json] | "
-    "mcplock proxy <serverName> <command> [args...] | "
-    "mcplock approve|deny <serverName> <toolName>"
+    "Usage: mcpseal init|install|uninstall|status|doctor|scan|diff|login|logout|policy-pull [projectDir] [--json] | "
+    "mcpseal proxy <serverName> <command> [args...] | "
+    "mcpseal approve|deny <serverName> <toolName>"
 )
 
 
@@ -61,17 +61,17 @@ def main(argv: list[str] | None = None) -> int:
         project_dir = rest[0] if rest else os.getcwd()
         result = init_cmd(project_dir)
         print(
-            f"mcplock init: wrote {result['lockfilePath']} "
+            f"mcpseal init: wrote {result['lockfilePath']} "
             f"({result['serverCount']} server(s), {result['toolCount']} tool(s) approved)"
         )
         return 0
 
     if command == "proxy":
         # Same syntax judgment call as cli-node (Tasks.md 2.2 Change Log):
-        # `mcplock proxy <serverName> <command> [args...]` — `install`
+        # `mcpseal proxy <serverName> <command> [args...]` — `install`
         # rewrites client configs to invoke it this way.
         if len(rest) < 2:
-            print("Usage: mcplock proxy <serverName> <command> [args...]", file=sys.stderr)
+            print("Usage: mcpseal proxy <serverName> <command> [args...]", file=sys.stderr)
             return 1
         server_name, command_, *server_args = rest
 
@@ -104,7 +104,7 @@ def main(argv: list[str] | None = None) -> int:
             )
             # Opt-in only (CLAUDE.md invariant 2): ship_events_best_effort()
             # checks is_logged_in() first and is a total no-op — zero
-            # network calls — if the user never ran `mcplock login`. Run in
+            # network calls — if the user never ran `mcpseal login`. Run in
             # a background daemon thread (not called synchronously) so a
             # shipping failure or slow network never adds latency to the
             # block itself, which has already happened by this point —
@@ -127,13 +127,13 @@ def main(argv: list[str] | None = None) -> int:
     if command == "install":
         project_dir = rest[0] if rest else os.getcwd()
         result = install_cmd(project_dir)
-        print(f"mcplock install: rewrote {result['configPath']} ({result['serverCount']} server(s)), backup at {result['backupPath']}")
+        print(f"mcpseal install: rewrote {result['configPath']} ({result['serverCount']} server(s)), backup at {result['backupPath']}")
         return 0
 
     if command == "uninstall":
         project_dir = rest[0] if rest else os.getcwd()
         result = uninstall_cmd(project_dir)
-        print(f"mcplock uninstall: restored {result['configPath']} from backup")
+        print(f"mcpseal uninstall: restored {result['configPath']} from backup")
         return 0
 
     if command == "scan":
@@ -168,7 +168,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if command in ("approve", "deny"):
         if len(rest) < 2:
-            print(f"Usage: mcplock {command} <serverName> <toolName>", file=sys.stderr)
+            print(f"Usage: mcpseal {command} <serverName> <toolName>", file=sys.stderr)
             return 1
         server_name, tool_name = rest[0], rest[1]
         status = "approved" if command == "approve" else "denied"
@@ -180,9 +180,9 @@ def main(argv: list[str] | None = None) -> int:
         # Approve/deny only ever change the LOCAL lockfile — say so
         # explicitly so this is never confused with organization-wide
         # policy, which only an admin can push via the Control Plane and
-        # `mcplock policy-pull`.
+        # `mcpseal policy-pull`.
         print(
-            f"mcplock {command}: {result['serverName']}/{result['toolName']} is now "
+            f"mcpseal {command}: {result['serverName']}/{result['toolName']} is now "
             f"\"{result['status']}\" ({result['hash']}) — local lockfile only, not organization policy"
         )
         return 0
@@ -191,13 +191,13 @@ def main(argv: list[str] | None = None) -> int:
         project_dir = rest[0] if rest else os.getcwd()
         diffs = diff_drifted(project_dir)
         if not diffs:
-            print("mcplock diff: no drifted tools.")
+            print("mcpseal diff: no drifted tools.")
             return 0
         for d in diffs:
             print(format_diff(d))
             print("  next:")
-            print(f"    mcplock approve {d['serverName']} {d['toolName']}   # only after reviewing the change above")
-            print(f"    mcplock deny {d['serverName']} {d['toolName']}")
+            print(f"    mcpseal approve {d['serverName']} {d['toolName']}   # only after reviewing the change above")
+            print(f"    mcpseal deny {d['serverName']} {d['toolName']}")
             print("")
         return 0
 
@@ -221,16 +221,16 @@ def main(argv: list[str] | None = None) -> int:
 
     if command == "login":
         if is_logged_in():
-            print("mcplock login: already logged in. Run `mcplock logout` first to switch workspaces.")
+            print("mcpseal login: already logged in. Run `mcpseal logout` first to switch workspaces.")
             return 0
 
         def on_waiting(user_code: str) -> None:
-            print(f"mcplock login: go approve this device — user code: {user_code}")
-            print("mcplock login: waiting for approval...")
+            print(f"mcpseal login: go approve this device — user code: {user_code}")
+            print("mcpseal login: waiting for approval...")
 
         try:
             result = login_cmd(on_waiting_for_approval=on_waiting)
-            print(f"mcplock login: connected to workspace {result.workspaceId} (machine {result.machineId})")
+            print(f"mcpseal login: connected to workspace {result.workspaceId} (machine {result.machineId})")
             return 0
         except LoginError as err:
             _print_classified(err)
@@ -239,12 +239,12 @@ def main(argv: list[str] | None = None) -> int:
     if command == "logout":
         # Reverses login: clears the non-secret config AND both keychain
         # secrets (the workspace API key and the machine's ed25519 private
-        # key). A fresh `mcplock login` afterward creates a brand-new
+        # key). A fresh `mcpseal login` afterward creates a brand-new
         # machine identity rather than reusing a possibly-compromised one.
         clear_config()
         delete_secret(API_KEY_ACCOUNT)
         delete_secret(PRIVATE_KEY_ACCOUNT)
-        print("mcplock logout: cleared workspace connection and local credentials. Local enforcement is unaffected.")
+        print("mcpseal logout: cleared workspace connection and local credentials. Local enforcement is unaffected.")
         return 0
 
     if command == "policy-pull":

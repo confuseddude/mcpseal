@@ -4,7 +4,7 @@
 // sha256 of the canonical JSON of {command, args}, reusing the same
 // canonicalization machinery as tool hashing for consistency.
 import { createHash } from "node:crypto";
-import { canonicalize } from "@mcplock/cli-core";
+import { canonicalize } from "@mcpseal/cli-core";
 import type { McpServerCommand } from "./mcp-client.js";
 
 export function hashCommand(cmd: McpServerCommand): string {

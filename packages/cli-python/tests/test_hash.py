@@ -1,6 +1,6 @@
 import pytest
 
-from mcplock.hash import hash_tool
+from mcpseal.hash import hash_tool
 
 BASE_TOOL = {
     "name": "create_issue",

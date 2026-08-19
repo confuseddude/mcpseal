@@ -11,7 +11,7 @@ import { readConfig, writeConfig, configPath as defaultConfigPath } from "./conf
 import { getSecret } from "./keychain.js";
 import { API_KEY_ACCOUNT } from "./login.js";
 import { signWithMachineKey } from "./machine-identity.js";
-import { readEvents, eventsLogPath, type McplockEvent } from "./event-log.js";
+import { readEvents, eventsLogPath, type McpsealEvent } from "./event-log.js";
 
 const PRIVATE_KEY_ACCOUNT = "machine-private-key";
 const MAX_BATCH_SIZE = 500;
@@ -63,7 +63,7 @@ export async function shipEvents(opts: ShipOptions = {}): Promise<ShipResult> {
         headers: {
           "content-type": "application/json",
           authorization: `Bearer ${apiKeyToken}`,
-          "x-mcplock-signature": signature,
+          "x-mcpseal-signature": signature,
         },
         body: raw,
       });
@@ -88,7 +88,7 @@ export async function shipEvents(opts: ShipOptions = {}): Promise<ShipResult> {
   return { skipped: false, shipped: shippedTotal, duplicates: duplicateTotal };
 }
 
-function indexAfter(events: McplockEvent[], lastShippedEventId: string): number {
+function indexAfter(events: McpsealEvent[], lastShippedEventId: string): number {
   const idx = events.findIndex((e) => e.eventId === lastShippedEventId);
   return idx === -1 ? 0 : idx + 1;
 }

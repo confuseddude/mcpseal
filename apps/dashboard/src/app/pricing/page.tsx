@@ -5,7 +5,7 @@ const TIERS = [
     name: "Free",
     price: "$0",
     tagline: "The CLI, forever.",
-    features: ["mcplock init / proxy / scan", "Local rug-pull blocking", "7-day workspace retention if you connect one"],
+    features: ["mcpseal init / proxy / scan", "Local rug-pull blocking", "7-day workspace retention if you connect one"],
     cta: { label: "Get started", href: "/login" },
   },
   {
@@ -21,7 +21,7 @@ const TIERS = [
     price: "Talk to us",
     tagline: "Provable compliance at fleet scale.",
     features: ["Everything in Team", "Signed policy push to the whole fleet", "SSO/SCIM", "Tamper-evident audit export", "Unlimited retention"],
-    cta: { label: "Contact sales", href: "mailto:sales@mcplock.dev" },
+    cta: { label: "Contact sales", href: "mailto:sales@mcpseal.dev" },
   },
 ];
 
@@ -30,7 +30,7 @@ export default function PricingPage() {
     <div className="min-h-screen px-6 py-16">
       <div className="mx-auto max-w-5xl">
         <div className="mb-12 text-center">
-          <div className="font-data text-sm text-[var(--color-text-faint)]">mcplock</div>
+          <div className="font-data text-sm text-[var(--color-text-faint)]">mcpseal</div>
           <h1 className="mt-2 text-2xl font-medium text-[var(--color-text)]">Pricing</h1>
           <p className="mt-2 text-sm text-[var(--color-text-dim)]">
             The free CLI is the whole product on one machine. The Control Plane is what a single machine structurally

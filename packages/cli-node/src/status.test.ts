@@ -1,6 +1,6 @@
-// Track A: `mcplock status` must work sensibly offline and never touch
+// Track A: `mcpseal status` must work sensibly offline and never touch
 // the network — buildStatusReport() is pure local file reads, verified
-// here with isolated temp paths (never the real ~/.mcplock).
+// here with isolated temp paths (never the real ~/.mcpseal).
 import { describe, it, expect, afterEach } from "vitest";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -15,7 +15,7 @@ const stubServerPath = path.join(path.dirname(fileURLToPath(import.meta.url)), "
 
 const dirs: string[] = [];
 function tmpProject(): string {
-  const d = mkdtempSync(path.join(tmpdir(), "mcplock-status-test-"));
+  const d = mkdtempSync(path.join(tmpdir(), "mcpseal-status-test-"));
   dirs.push(d);
   return d;
 }
@@ -45,7 +45,7 @@ describe("buildStatusReport", () => {
     const dir = tmpProject();
     const opts = { lockfilePath: path.join(dir, ".mcp-lock.json"), logPath: path.join(dir, "events.jsonl"), cfgPath: path.join(dir, "config.json") };
     expect(buildStatusReport(dir, opts).local.proxyInstalled).toBe(false);
-    writeFileSync(path.join(dir, ".mcp.json.mcplock-backup"), "{}");
+    writeFileSync(path.join(dir, ".mcp.json.mcpseal-backup"), "{}");
     expect(buildStatusReport(dir, opts).local.proxyInstalled).toBe(true);
   });
 
@@ -93,15 +93,15 @@ describe("formatStatusReport", () => {
     expect(text).toContain("CONTROL PLANE");
   });
 
-  it("suggests `mcplock init` when the lockfile is missing", () => {
+  it("suggests `mcpseal init` when the lockfile is missing", () => {
     const dir = tmpProject();
     const report = buildStatusReport(dir, { lockfilePath: path.join(dir, ".mcp-lock.json"), logPath: path.join(dir, "events.jsonl"), cfgPath: path.join(dir, "config.json") });
-    expect(formatStatusReport(report)).toContain("mcplock init");
+    expect(formatStatusReport(report)).toContain("mcpseal init");
   });
 
-  it("suggests `mcplock install` when the proxy is not installed", () => {
+  it("suggests `mcpseal install` when the proxy is not installed", () => {
     const dir = tmpProject();
     const report = buildStatusReport(dir, { lockfilePath: path.join(dir, ".mcp-lock.json"), logPath: path.join(dir, "events.jsonl"), cfgPath: path.join(dir, "config.json") });
-    expect(formatStatusReport(report)).toContain("mcplock install");
+    expect(formatStatusReport(report)).toContain("mcpseal install");
   });
 });

@@ -3,7 +3,7 @@ import os
 
 import pytest
 
-from mcplock.config_discovery import discover_servers_from_claude_code_project_config
+from mcpseal.config_discovery import discover_servers_from_claude_code_project_config
 
 
 def write_mcp_json(tmp_path, content):

@@ -1,5 +1,5 @@
 {
-  "name": "@mcplock/app-api",
+  "name": "@mcpseal/app-api",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -15,7 +15,7 @@
   "dependencies": {
     "@fastify/cookie": "^11.0.2",
     "@fastify/cors": "^11.3.0",
-    "@mcplock/shared-types": "workspace:^",
+    "@mcpseal/shared-types": "workspace:^",
     "@noble/curves": "^2.3.0",
     "argon2": "^0.45.1",
     "better-sqlite3": "^13.0.3",

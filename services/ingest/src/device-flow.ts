@@ -6,7 +6,7 @@
 // for a human to click "approve" in. The production approve step —
 // POST /v1/auth/device/approve, called by an authenticated Dashboard
 // session — is implemented for real below. For local/dev use without a
-// dashboard, set MCPLOCK_DEV_AUTO_APPROVE_DEVICE=1 on the ingest server to
+// dashboard, set MCPSEAL_DEV_AUTO_APPROVE_DEVICE=1 on the ingest server to
 // have it call the same approve() function immediately after a device code
 // is issued, standing in for the human click. This is clearly a dev-only
 // substitute, not a security shortcut: the approve endpoint itself performs
@@ -84,7 +84,7 @@ export async function pollDeviceFlow(db: Database.Database, deviceCode: string):
     workspaceId: row.workspace_id,
     keyId,
     keyHash,
-    name: "mcplock login",
+    name: "mcpseal login",
     createdAt: new Date().toISOString(),
     lastUsed: null,
     revokedAt: null,

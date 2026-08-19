@@ -1,5 +1,5 @@
 {
-  "name": "@mcplock/cli-core",
+  "name": "@mcpseal/cli-core",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -11,7 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@mcplock/shared-types": "workspace:^",
+    "@mcpseal/shared-types": "workspace:^",
     "canonicalize": "^4.0.0"
   },
   "devDependencies": {

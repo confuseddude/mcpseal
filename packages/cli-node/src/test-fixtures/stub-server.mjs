@@ -1,7 +1,7 @@
 // Minimal stub MCP server for proxy.integration.test.ts. Not a mock of the
 // interception logic under test — it's a real separate process speaking
 // real newline-delimited JSON-RPC over its own stdio, exercised through an
-// actual spawned `mcplock proxy` in between.
+// actual spawned `mcpseal proxy` in between.
 process.stdin.setEncoding("utf-8");
 let buffer = "";
 

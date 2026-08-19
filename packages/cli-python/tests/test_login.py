@@ -5,11 +5,11 @@ import uuid
 
 import pytest
 
-from mcplock.config import read_config
-from mcplock.keychain import delete_secret, get_secret
-from mcplock.login import API_KEY_ACCOUNT, LoginError, login
-from mcplock.http_client import HttpResponse
-from mcplock.machine_identity import PRIVATE_KEY_ACCOUNT
+from mcpseal.config import read_config
+from mcpseal.keychain import delete_secret, get_secret
+from mcpseal.login import API_KEY_ACCOUNT, LoginError, login
+from mcpseal.http_client import HttpResponse
+from mcpseal.machine_identity import PRIVATE_KEY_ACCOUNT
 
 
 def mock_request_sequence(responses):

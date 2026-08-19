@@ -16,7 +16,7 @@ export function NavRail() {
   return (
     <nav className="flex h-full w-56 shrink-0 flex-col border-r border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-5">
       <div className="mb-8 px-2">
-        <span className="font-data text-sm tracking-tight text-[var(--color-text)]">mcplock</span>
+        <span className="font-data text-sm tracking-tight text-[var(--color-text)]">mcpseal</span>
         <span className="ml-1.5 font-data text-[10px] text-[var(--color-text-faint)]">control plane</span>
       </div>
       <div className="flex flex-col gap-0.5">

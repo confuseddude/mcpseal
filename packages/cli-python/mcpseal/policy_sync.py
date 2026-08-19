@@ -19,8 +19,8 @@ from typing import Literal
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
-from mcplock.config import config_path as default_config_path, read_config, write_config
-from mcplock.http_client import HttpRequestFn, request as default_request
+from mcpseal.config import config_path as default_config_path, read_config, write_config
+from mcpseal.http_client import HttpRequestFn, request as default_request
 
 Outcome = Literal[
     "applied",

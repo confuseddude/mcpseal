@@ -50,7 +50,7 @@ describe("ingest app", () => {
       method: "POST",
       url: "/v1/machines/register",
       headers: { authorization: `Bearer ${apiKeyToken}` },
-      payload: { workspaceId, machineId, publicKey: publicKeyHex, mcplockVersion: "0.1.0" },
+      payload: { workspaceId, machineId, publicKey: publicKeyHex, mcpsealVersion: "0.1.0" },
     });
     expect(regRes.statusCode).toBe(200);
 
@@ -67,7 +67,7 @@ describe("ingest app", () => {
           observedHash: "sha256:aaa",
           expectedHash: "sha256:bbb",
           clientApp: "cursor",
-          mcplockVersion: "0.1.0",
+          mcpsealVersion: "0.1.0",
         },
       ],
     };
@@ -77,7 +77,7 @@ describe("ingest app", () => {
     const evRes = await app.inject({
       method: "POST",
       url: "/v1/events",
-      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcplock-signature": signature, "content-type": "application/json" },
+      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcpseal-signature": signature, "content-type": "application/json" },
       payload: raw,
     });
     expect(evRes.statusCode).toBe(202);
@@ -87,7 +87,7 @@ describe("ingest app", () => {
     const retryRes = await app.inject({
       method: "POST",
       url: "/v1/events",
-      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcplock-signature": signature, "content-type": "application/json" },
+      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcpseal-signature": signature, "content-type": "application/json" },
       payload: raw,
     });
     expect(retryRes.statusCode).toBe(202);
@@ -108,7 +108,7 @@ describe("ingest app", () => {
       method: "POST",
       url: "/v1/machines/register",
       headers: { authorization: `Bearer ${apiKeyToken}` },
-      payload: { workspaceId, machineId, publicKey: publicKeyHex, mcplockVersion: "0.1.0" },
+      payload: { workspaceId, machineId, publicKey: publicKeyHex, mcpsealVersion: "0.1.0" },
     });
 
     const expected: Record<string, string> = {
@@ -129,7 +129,7 @@ describe("ingest app", () => {
       server: "s",
       tool: "t",
       clientApp: "test",
-      mcplockVersion: "0.1.0",
+      mcpsealVersion: "0.1.0",
     }));
     const body = { machineId, workspaceId, batch };
     const raw = JSON.stringify(body);
@@ -138,12 +138,12 @@ describe("ingest app", () => {
     const res = await app.inject({
       method: "POST",
       url: "/v1/events",
-      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcplock-signature": signature, "content-type": "application/json" },
+      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcpseal-signature": signature, "content-type": "application/json" },
       payload: raw,
     });
     expect(res.statusCode).toBe(202);
 
-    const db = (app as unknown as { mcplockDb: import("better-sqlite3").Database }).mcplockDb;
+    const db = (app as unknown as { mcpsealDb: import("better-sqlite3").Database }).mcpsealDb;
     const rows = db.prepare("SELECT type, severity FROM events WHERE workspace_id = ?").all(workspaceId) as Array<{ type: string; severity: string }>;
     for (const row of rows) {
       expect(row.severity).toBe(expected[row.type]);
@@ -184,7 +184,7 @@ describe("ingest app", () => {
       method: "POST",
       url: "/v1/machines/register",
       headers: { authorization: `Bearer ${apiKeyToken}` },
-      payload: { workspaceId, machineId, publicKey: publicKeyHex, mcplockVersion: "0.1.0" },
+      payload: { workspaceId, machineId, publicKey: publicKeyHex, mcpsealVersion: "0.1.0" },
     });
 
     // Prove the key works before revocation.
@@ -194,21 +194,21 @@ describe("ingest app", () => {
     const before = await app.inject({
       method: "POST",
       url: "/v1/events",
-      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcplock-signature": workingSig, "content-type": "application/json" },
+      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcpseal-signature": workingSig, "content-type": "application/json" },
       payload: workingRaw,
     });
     expect(before.statusCode).toBe(202);
 
     // Revoke it (same table/column the App API's revoke endpoint writes).
     const keyId = apiKeyToken.split(".")[0];
-    const db = (app as unknown as { mcplockDb: import("better-sqlite3").Database }).mcplockDb;
+    const db = (app as unknown as { mcpsealDb: import("better-sqlite3").Database }).mcpsealDb;
     db.prepare("UPDATE api_keys SET revoked_at = ? WHERE key_id = ?").run(new Date().toISOString(), keyId);
 
     // The exact same, previously-valid request must now be rejected.
     const after = await app.inject({
       method: "POST",
       url: "/v1/events",
-      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcplock-signature": workingSig, "content-type": "application/json" },
+      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcpseal-signature": workingSig, "content-type": "application/json" },
       payload: workingRaw,
     });
     expect(after.statusCode).toBe(401);
@@ -219,7 +219,7 @@ describe("ingest app", () => {
       method: "POST",
       url: "/v1/machines/register",
       headers: { authorization: `Bearer ${apiKeyToken}` },
-      payload: { workspaceId, machineId: randomUUID(), publicKey: publicKeyHex, mcplockVersion: "0.1.0" },
+      payload: { workspaceId, machineId: randomUUID(), publicKey: publicKeyHex, mcpsealVersion: "0.1.0" },
     });
     expect(regAfterRevoke.statusCode).toBe(401);
   });
@@ -230,7 +230,7 @@ describe("ingest app", () => {
     const res = await app.inject({
       method: "POST",
       url: "/v1/events",
-      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcplock-signature": "00", "content-type": "application/json" },
+      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcpseal-signature": "00", "content-type": "application/json" },
       payload: JSON.stringify(body),
     });
     expect(res.statusCode).toBe(403);
@@ -256,7 +256,7 @@ describe("ingest app", () => {
     const res = await app.inject({
       method: "POST",
       url: "/v1/events",
-      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcplock-signature": forgedSignature, "content-type": "application/json" },
+      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcpseal-signature": forgedSignature, "content-type": "application/json" },
       payload: raw,
     });
     expect(res.statusCode).toBe(401);
@@ -277,13 +277,13 @@ describe("ingest app", () => {
     const rawOriginal = JSON.stringify(original);
     const signature = bytesToHex(ed25519.sign(Buffer.from(rawOriginal, "utf-8"), privateKey));
 
-    const tampered = { machineId, workspaceId, batch: [{ eventId: randomUUID(), ts: new Date().toISOString(), type: "blocked_drift", server: "x", tool: "y", clientApp: "z", mcplockVersion: "0.1.0" }] };
+    const tampered = { machineId, workspaceId, batch: [{ eventId: randomUUID(), ts: new Date().toISOString(), type: "blocked_drift", server: "x", tool: "y", clientApp: "z", mcpsealVersion: "0.1.0" }] };
     const rawTampered = JSON.stringify(tampered);
 
     const res = await app.inject({
       method: "POST",
       url: "/v1/events",
-      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcplock-signature": signature, "content-type": "application/json" },
+      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcpseal-signature": signature, "content-type": "application/json" },
       payload: rawTampered,
     });
     expect(res.statusCode).toBe(401);
@@ -315,7 +315,7 @@ describe("ingest app", () => {
     const res = await app.inject({
       method: "POST",
       url: "/v1/events",
-      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcplock-signature": signature, "content-type": "application/json" },
+      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcpseal-signature": signature, "content-type": "application/json" },
       payload: raw,
     });
     expect(res.statusCode).toBe(400);
@@ -338,7 +338,7 @@ describe("ingest app", () => {
       server: "s",
       tool: "t",
       clientApp: "c",
-      mcplockVersion: "0.1.0",
+      mcpsealVersion: "0.1.0",
     }));
     const body = { machineId, workspaceId, batch };
     const raw = JSON.stringify(body);
@@ -346,7 +346,7 @@ describe("ingest app", () => {
     const res = await app.inject({
       method: "POST",
       url: "/v1/events",
-      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcplock-signature": signature, "content-type": "application/json" },
+      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcpseal-signature": signature, "content-type": "application/json" },
       payload: raw,
     });
     expect(res.statusCode).toBe(400);
@@ -363,7 +363,7 @@ describe("ingest app", () => {
     const res = await app.inject({
       method: "POST",
       url: "/v1/events",
-      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcplock-signature": signature, "content-type": "application/json" },
+      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcpseal-signature": signature, "content-type": "application/json" },
       payload: raw,
     });
     expect(res.statusCode).toBe(403);
@@ -389,7 +389,7 @@ describe("ingest app", () => {
       const res = await app.inject({
         method: "POST",
         url: "/v1/events",
-        headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcplock-signature": signature, "content-type": "application/json" },
+        headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcpseal-signature": signature, "content-type": "application/json" },
         payload: raw,
       });
       lastStatus = res.statusCode;
@@ -425,7 +425,7 @@ describe("signed policy pull (build-bible Part 8.1)", () => {
   });
 
   function seedOrgSigningKey(orgId: string, publicKeyHex: string) {
-    const db = (app as unknown as { mcplockDb: import("better-sqlite3").Database }).mcplockDb;
+    const db = (app as unknown as { mcpsealDb: import("better-sqlite3").Database }).mcpsealDb;
     db.prepare("INSERT INTO org_signing_keys (org_id, public_key, encrypted_private_key, created_at) VALUES (?, ?, 'unused-in-ingest', ?)").run(
       orgId,
       publicKeyHex,
@@ -434,7 +434,7 @@ describe("signed policy pull (build-bible Part 8.1)", () => {
   }
 
   function seedPolicy(orgId: string, version: number, lockfileJson: string, signature: string) {
-    const db = (app as unknown as { mcplockDb: import("better-sqlite3").Database }).mcplockDb;
+    const db = (app as unknown as { mcpsealDb: import("better-sqlite3").Database }).mcpsealDb;
     db.prepare(
       "INSERT INTO policies (id, org_id, version, lockfile_json, signature, created_by, created_at) VALUES (?, ?, ?, ?, ?, 'test', ?)"
     ).run(randomUUID(), orgId, version, lockfileJson, signature, new Date().toISOString());
@@ -442,7 +442,7 @@ describe("signed policy pull (build-bible Part 8.1)", () => {
 
   it("machine registration hands back the org's public key for pinning", async () => {
     const { apiKeyToken, workspaceId } = await setupApprovedWorkspace(app);
-    const db = (app as unknown as { mcplockDb: import("better-sqlite3").Database }).mcplockDb;
+    const db = (app as unknown as { mcpsealDb: import("better-sqlite3").Database }).mcpsealDb;
     const orgId = (db.prepare("SELECT org_id FROM workspaces WHERE id = ?").get(workspaceId) as { org_id: string }).org_id;
     const orgPrivateKey = ed25519.utils.randomSecretKey();
     const orgPublicKeyHex = bytesToHex(ed25519.getPublicKey(orgPrivateKey));
@@ -479,7 +479,7 @@ describe("signed policy pull (build-bible Part 8.1)", () => {
 
   it("GET /v1/policy/current returns the latest (highest-version) signed policy", async () => {
     const { apiKeyToken, workspaceId } = await setupApprovedWorkspace(app);
-    const db = (app as unknown as { mcplockDb: import("better-sqlite3").Database }).mcplockDb;
+    const db = (app as unknown as { mcpsealDb: import("better-sqlite3").Database }).mcpsealDb;
     const orgId = (db.prepare("SELECT org_id FROM workspaces WHERE id = ?").get(workspaceId) as { org_id: string }).org_id;
     seedPolicy(orgId, 1, '{"version":1}', "sig1");
     seedPolicy(orgId, 2, '{"version":2}', "sig2");
@@ -503,7 +503,7 @@ describe("tamper-evident audit hash chain (build-bible Part 8.3)", () => {
   });
 
   function rawEvents(workspaceId: string) {
-    const db = (app as unknown as { mcplockDb: import("better-sqlite3").Database }).mcplockDb;
+    const db = (app as unknown as { mcpsealDb: import("better-sqlite3").Database }).mcpsealDb;
     return db.prepare("SELECT * FROM events WHERE workspace_id = ? ORDER BY rowid ASC").all(workspaceId) as Array<{
       event_id: string;
       prev_hash: string;
@@ -534,7 +534,7 @@ describe("tamper-evident audit hash chain (build-bible Part 8.3)", () => {
     const res = await app.inject({
       method: "POST",
       url: "/v1/events",
-      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcplock-signature": signature, "content-type": "application/json" },
+      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcpseal-signature": signature, "content-type": "application/json" },
       payload: raw,
     });
     return { res, workspaceId, signature };
@@ -542,7 +542,7 @@ describe("tamper-evident audit hash chain (build-bible Part 8.3)", () => {
 
   it("the first event in a workspace chains from a deterministic genesis hash, not an arbitrary value", async () => {
     const { workspaceId } = await registerAndShip(app, [
-      { eventId: randomUUID(), ts: new Date().toISOString(), type: "blocked_drift", server: "s", tool: "t", clientApp: "c", mcplockVersion: "0.1.0" },
+      { eventId: randomUUID(), ts: new Date().toISOString(), type: "blocked_drift", server: "s", tool: "t", clientApp: "c", mcpsealVersion: "0.1.0" },
     ]);
     const events = rawEvents(workspaceId);
     expect(events).toHaveLength(1);
@@ -556,9 +556,9 @@ describe("tamper-evident audit hash chain (build-bible Part 8.3)", () => {
 
   it("each subsequent event's prev_hash equals the previous event's chain_hash — a real, verifiable chain", async () => {
     const { workspaceId } = await registerAndShip(app, [
-      { eventId: randomUUID(), ts: new Date().toISOString(), type: "blocked_drift", server: "s", tool: "t1", clientApp: "c", mcplockVersion: "0.1.0" },
-      { eventId: randomUUID(), ts: new Date().toISOString(), type: "blocked_unknown", server: "s", tool: "t2", clientApp: "c", mcplockVersion: "0.1.0" },
-      { eventId: randomUUID(), ts: new Date().toISOString(), type: "blocked_denied", server: "s", tool: "t3", clientApp: "c", mcplockVersion: "0.1.0" },
+      { eventId: randomUUID(), ts: new Date().toISOString(), type: "blocked_drift", server: "s", tool: "t1", clientApp: "c", mcpsealVersion: "0.1.0" },
+      { eventId: randomUUID(), ts: new Date().toISOString(), type: "blocked_unknown", server: "s", tool: "t2", clientApp: "c", mcpsealVersion: "0.1.0" },
+      { eventId: randomUUID(), ts: new Date().toISOString(), type: "blocked_denied", server: "s", tool: "t3", clientApp: "c", mcpsealVersion: "0.1.0" },
     ]);
     const events = rawEvents(workspaceId);
     expect(events).toHaveLength(3);
@@ -576,7 +576,7 @@ describe("tamper-evident audit hash chain (build-bible Part 8.3)", () => {
 
   it("MODIFIED event: changing any field after the fact breaks the recomputed hash — tampering is detectable", async () => {
     const { workspaceId } = await registerAndShip(app, [
-      { eventId: randomUUID(), ts: new Date().toISOString(), type: "blocked_drift", server: "s", tool: "t1", clientApp: "c", mcplockVersion: "0.1.0" },
+      { eventId: randomUUID(), ts: new Date().toISOString(), type: "blocked_drift", server: "s", tool: "t1", clientApp: "c", mcpsealVersion: "0.1.0" },
     ]);
     const events = rawEvents(workspaceId);
     const crypto = await import("node:crypto");
@@ -588,12 +588,12 @@ describe("tamper-evident audit hash chain (build-bible Part 8.3)", () => {
 
   it("DELETED event: removing a middle event breaks the chain's continuity for everything after it", async () => {
     const { workspaceId } = await registerAndShip(app, [
-      { eventId: randomUUID(), ts: new Date().toISOString(), type: "blocked_drift", server: "s", tool: "t1", clientApp: "c", mcplockVersion: "0.1.0" },
-      { eventId: randomUUID(), ts: new Date().toISOString(), type: "blocked_unknown", server: "s", tool: "t2", clientApp: "c", mcplockVersion: "0.1.0" },
-      { eventId: randomUUID(), ts: new Date().toISOString(), type: "blocked_denied", server: "s", tool: "t3", clientApp: "c", mcplockVersion: "0.1.0" },
+      { eventId: randomUUID(), ts: new Date().toISOString(), type: "blocked_drift", server: "s", tool: "t1", clientApp: "c", mcpsealVersion: "0.1.0" },
+      { eventId: randomUUID(), ts: new Date().toISOString(), type: "blocked_unknown", server: "s", tool: "t2", clientApp: "c", mcpsealVersion: "0.1.0" },
+      { eventId: randomUUID(), ts: new Date().toISOString(), type: "blocked_denied", server: "s", tool: "t3", clientApp: "c", mcpsealVersion: "0.1.0" },
     ]);
     const before = rawEvents(workspaceId);
-    const db = (app as unknown as { mcplockDb: import("better-sqlite3").Database }).mcplockDb;
+    const db = (app as unknown as { mcpsealDb: import("better-sqlite3").Database }).mcpsealDb;
     db.prepare("DELETE FROM events WHERE event_id = ?").run(before[1].event_id); // delete the middle one
 
     const after = rawEvents(workspaceId);
@@ -608,8 +608,8 @@ describe("tamper-evident audit hash chain (build-bible Part 8.3)", () => {
 
   it("REORDERED events: swapping two events' chain positions breaks linkage even though both rows still exist", async () => {
     const { workspaceId } = await registerAndShip(app, [
-      { eventId: randomUUID(), ts: "2026-01-01T00:00:00.000Z", type: "blocked_drift", server: "s", tool: "t1", clientApp: "c", mcplockVersion: "0.1.0" },
-      { eventId: randomUUID(), ts: "2026-01-01T00:00:01.000Z", type: "blocked_unknown", server: "s", tool: "t2", clientApp: "c", mcplockVersion: "0.1.0" },
+      { eventId: randomUUID(), ts: "2026-01-01T00:00:00.000Z", type: "blocked_drift", server: "s", tool: "t1", clientApp: "c", mcpsealVersion: "0.1.0" },
+      { eventId: randomUUID(), ts: "2026-01-01T00:00:01.000Z", type: "blocked_unknown", server: "s", tool: "t2", clientApp: "c", mcpsealVersion: "0.1.0" },
     ]);
     const events = rawEvents(workspaceId);
     // Walking the chain in `ts` order instead of true insertion order
@@ -626,9 +626,9 @@ describe("tamper-evident audit hash chain (build-bible Part 8.3)", () => {
 
   it("INSERTED (foreign) event: a row injected without going through the chain breaks linkage", async () => {
     const { workspaceId } = await registerAndShip(app, [
-      { eventId: randomUUID(), ts: new Date().toISOString(), type: "blocked_drift", server: "s", tool: "t1", clientApp: "c", mcplockVersion: "0.1.0" },
+      { eventId: randomUUID(), ts: new Date().toISOString(), type: "blocked_drift", server: "s", tool: "t1", clientApp: "c", mcpsealVersion: "0.1.0" },
     ]);
-    const db = (app as unknown as { mcplockDb: import("better-sqlite3").Database }).mcplockDb;
+    const db = (app as unknown as { mcpsealDb: import("better-sqlite3").Database }).mcpsealDb;
     db.prepare(
       `INSERT INTO events (event_id, workspace_id, machine_id, ts, type, server, tool, client_app, severity, ingested_at, prev_hash, chain_hash, batch_signature)
        VALUES (?, ?, 'forged-machine', ?, 'blocked_drift', 'forged-server', 'forged-tool', 'forged', 'high', ?, 'not-a-real-prev-hash', 'not-a-real-chain-hash', 'forged-sig')`
@@ -653,12 +653,12 @@ describe("tamper-evident audit hash chain (build-bible Part 8.3)", () => {
     });
 
     const firstEventId = randomUUID();
-    const firstBatch = { machineId, workspaceId, batch: [{ eventId: firstEventId, ts: new Date().toISOString(), type: "blocked_drift", server: "s", tool: "t1", clientApp: "c", mcplockVersion: "0.1.0" }] };
+    const firstBatch = { machineId, workspaceId, batch: [{ eventId: firstEventId, ts: new Date().toISOString(), type: "blocked_drift", server: "s", tool: "t1", clientApp: "c", mcpsealVersion: "0.1.0" }] };
     const firstRaw = JSON.stringify(firstBatch);
     await app.inject({
       method: "POST",
       url: "/v1/events",
-      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcplock-signature": bytesToHex(ed25519.sign(Buffer.from(firstRaw, "utf-8"), privateKey)), "content-type": "application/json" },
+      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcpseal-signature": bytesToHex(ed25519.sign(Buffer.from(firstRaw, "utf-8"), privateKey)), "content-type": "application/json" },
       payload: firstRaw,
     });
 
@@ -668,15 +668,15 @@ describe("tamper-evident audit hash chain (build-bible Part 8.3)", () => {
       machineId,
       workspaceId,
       batch: [
-        { eventId: firstEventId, ts: new Date().toISOString(), type: "blocked_drift", server: "s", tool: "t1", clientApp: "c", mcplockVersion: "0.1.0" },
-        { eventId: secondEventId, ts: new Date().toISOString(), type: "blocked_unknown", server: "s", tool: "t2", clientApp: "c", mcplockVersion: "0.1.0" },
+        { eventId: firstEventId, ts: new Date().toISOString(), type: "blocked_drift", server: "s", tool: "t1", clientApp: "c", mcpsealVersion: "0.1.0" },
+        { eventId: secondEventId, ts: new Date().toISOString(), type: "blocked_unknown", server: "s", tool: "t2", clientApp: "c", mcpsealVersion: "0.1.0" },
       ],
     };
     const secondRaw = JSON.stringify(secondBatch);
     await app.inject({
       method: "POST",
       url: "/v1/events",
-      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcplock-signature": bytesToHex(ed25519.sign(Buffer.from(secondRaw, "utf-8"), privateKey)), "content-type": "application/json" },
+      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcpseal-signature": bytesToHex(ed25519.sign(Buffer.from(secondRaw, "utf-8"), privateKey)), "content-type": "application/json" },
       payload: secondRaw,
     });
 

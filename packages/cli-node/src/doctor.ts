@@ -1,10 +1,10 @@
-// Track A: `mcplock doctor` — a read-only diagnostic of the local
+// Track A: `mcpseal doctor` — a read-only diagnostic of the local
 // installation, ending with a best-effort (short-timeout, non-fatal)
 // Control Plane reachability probe. Never repairs anything automatically
 // — every failed check names the command that would fix it.
 import path from "node:path";
 import { existsSync } from "node:fs";
-import { readLockfile } from "@mcplock/cli-core";
+import { readLockfile } from "@mcpseal/cli-core";
 import { discoverServersFromClaudeCodeProjectConfig } from "./config-discovery.js";
 import { readConfig } from "./config.js";
 import { readEvents, eventsLogPath } from "./event-log.js";
@@ -64,18 +64,18 @@ export async function runDoctor(projectDir: string = process.cwd(), opts: Doctor
       name: "Lockfile",
       ok: false,
       detail: (err as Error).message,
-      remediation: ["mcplock init"],
+      remediation: ["mcpseal init"],
     });
   }
 
-  const backupPath = path.join(projectDir, ".mcp.json.mcplock-backup");
+  const backupPath = path.join(projectDir, ".mcp.json.mcpseal-backup");
   const installed = existsSync(backupPath);
   checks.push({
     category: "local",
     name: "Proxy installed",
     ok: installed,
-    detail: installed ? "MCP servers route through mcplock proxy" : "MCP servers launch directly — unprotected",
-    remediation: installed ? undefined : ["mcplock install"],
+    detail: installed ? "MCP servers route through mcpseal proxy" : "MCP servers launch directly — unprotected",
+    remediation: installed ? undefined : ["mcpseal install"],
   });
 
   try {
@@ -154,7 +154,7 @@ export async function runDoctor(projectDir: string = process.cwd(), opts: Doctor
 }
 
 export function formatDoctorReport(report: DoctorReport): string {
-  const lines: string[] = ["MCPLOCK DOCTOR", ""];
+  const lines: string[] = ["MCPSEAL DOCTOR", ""];
   for (const c of report.checks) {
     const mark = c.ok ? "✔" : "⚠";
     lines.push(`${mark} ${c.name}`);

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "generatedAt": "2026-08-17T00:00:00Z",
-  "generatedBy": "mcplock@0.1.0",
+  "generatedBy": "mcpseal@0.1.0",
   "servers": {
     "github": {
       "transport": "stdio",

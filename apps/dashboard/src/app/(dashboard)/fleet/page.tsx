@@ -18,7 +18,7 @@ export default function FleetPage() {
     <div>
       <h1 className="text-lg font-medium text-[var(--color-text)]">Fleet</h1>
       <p className="mt-1 mb-6 text-sm text-[var(--color-text-dim)]">
-        Every machine that has ever connected mcplock to this workspace.
+        Every machine that has ever connected mcpseal to this workspace.
       </p>
 
       {machines === null ? (
@@ -44,7 +44,7 @@ export default function FleetPage() {
               return (
                 <tr key={m.id} className="border-b border-[var(--color-border)]">
                   <td className="py-2.5 font-data text-xs text-[var(--color-text)]">{m.machine_id}</td>
-                  <td className="py-2.5 font-data text-xs text-[var(--color-text-dim)]">{m.mcplock_version ?? "—"}</td>
+                  <td className="py-2.5 font-data text-xs text-[var(--color-text-dim)]">{m.mcpseal_version ?? "—"}</td>
                   <td className="py-2.5 font-data text-xs text-[var(--color-text-dim)]">{new Date(m.first_seen).toLocaleDateString()}</td>
                   <td className="py-2.5 font-data text-xs text-[var(--color-text-dim)]">{new Date(m.last_seen).toLocaleString()}</td>
                   <td className="py-2.5">

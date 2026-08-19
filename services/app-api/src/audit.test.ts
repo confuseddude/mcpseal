@@ -8,9 +8,9 @@ import type { AuditEventRow } from "./db.js";
 
 function extractCookie(setCookieHeader: string | string[] | undefined): string {
   const header = Array.isArray(setCookieHeader) ? setCookieHeader[0] : setCookieHeader;
-  const match = header?.match(/mcplock_session=([^;]+)/);
+  const match = header?.match(/mcpseal_session=([^;]+)/);
   if (!match) throw new Error("no session cookie in response");
-  return `mcplock_session=${match[1]}`;
+  return `mcpseal_session=${match[1]}`;
 }
 
 async function loginAs(app: FastifyInstance, email: string) {
@@ -145,7 +145,7 @@ describe("GET /v1/audit/export — RBAC, plan gating, and real end-to-end chain 
     // insert directly via the shared db handle, computing real chain
     // hashes with the same function ingest uses, to prove the STORED
     // rows — not just in-memory fixtures — verify correctly end-to-end.
-    const db = (app as unknown as { mcplockDb: import("better-sqlite3").Database }).mcplockDb;
+    const db = (app as unknown as { mcpsealDb: import("better-sqlite3").Database }).mcpsealDb;
     let prevHash = genesisHash(workspaceId);
     for (let i = 0; i < count; i++) {
       const eventId = randomUUID();
@@ -162,7 +162,7 @@ describe("GET /v1/audit/export — RBAC, plan gating, and real end-to-end chain 
   }
 
   async function upgradeToEnterprise(app: FastifyInstance, orgId: string) {
-    const db = (app as unknown as { mcplockDb: import("better-sqlite3").Database }).mcplockDb;
+    const db = (app as unknown as { mcpsealDb: import("better-sqlite3").Database }).mcpsealDb;
     db.prepare(
       "INSERT INTO subscriptions (id, org_id, stripe_customer_id, stripe_sub_id, plan, seats, status) VALUES (?, ?, 'cus_x', 'sub_x', 'enterprise', 1, 'active')"
     ).run(randomUUID(), orgId);
@@ -201,7 +201,7 @@ describe("GET /v1/audit/export — RBAC, plan gating, and real end-to-end chain 
     await upgradeToEnterprise(app, owner.orgId);
     const workspaceId = await shipRealSignedEvents(app, owner.cookie, 3);
 
-    const db = (app as unknown as { mcplockDb: import("better-sqlite3").Database }).mcplockDb;
+    const db = (app as unknown as { mcpsealDb: import("better-sqlite3").Database }).mcpsealDb;
     db.prepare("UPDATE events SET tool = 'TAMPERED' WHERE event_id = (SELECT event_id FROM events WHERE workspace_id = ? ORDER BY rowid ASC LIMIT 1)").run(
       workspaceId
     );

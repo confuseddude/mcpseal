@@ -1,4 +1,4 @@
-# Mirrors packages/cli-node/src/doctor.ts. Track A: `mcplock doctor` — a
+# Mirrors packages/cli-node/src/doctor.ts. Track A: `mcpseal doctor` — a
 # read-only diagnostic of the local installation, ending with a
 # best-effort, short-timeout, non-fatal Control Plane reachability probe.
 # Never repairs anything automatically.
@@ -7,12 +7,12 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 
-from mcplock.config import read_config
-from mcplock.config_discovery import discover_servers_from_claude_code_project_config
-from mcplock.event_log import events_log_path, read_events
-from mcplock.http_client import HttpRequestFn, request as default_request
-from mcplock.keychain import get_secret
-from mcplock.lockfile import read_lockfile
+from mcpseal.config import read_config
+from mcpseal.config_discovery import discover_servers_from_claude_code_project_config
+from mcpseal.event_log import events_log_path, read_events
+from mcpseal.http_client import HttpRequestFn, request as default_request
+from mcpseal.keychain import get_secret
+from mcpseal.lockfile import read_lockfile
 
 
 @dataclass
@@ -69,17 +69,17 @@ def run_doctor(
         tool_count = sum(len(s["tools"]) for s in lockfile["servers"].values())
         checks.append(DoctorCheck(category="local", name="Lockfile", ok=True, detail=f"{server_count} server(s), {tool_count} tool(s) pinned"))
     except ValueError as err:
-        checks.append(DoctorCheck(category="local", name="Lockfile", ok=False, detail=str(err), remediation=["mcplock init"]))
+        checks.append(DoctorCheck(category="local", name="Lockfile", ok=False, detail=str(err), remediation=["mcpseal init"]))
 
-    backup_path = os.path.join(resolved_project_dir, ".mcp.json.mcplock-backup")
+    backup_path = os.path.join(resolved_project_dir, ".mcp.json.mcpseal-backup")
     installed = os.path.exists(backup_path)
     checks.append(
         DoctorCheck(
             category="local",
             name="Proxy installed",
             ok=installed,
-            detail="MCP servers route through mcplock proxy" if installed else "MCP servers launch directly — unprotected",
-            remediation=None if installed else ["mcplock install"],
+            detail="MCP servers route through mcpseal proxy" if installed else "MCP servers launch directly — unprotected",
+            remediation=None if installed else ["mcpseal install"],
         )
     )
 
@@ -154,7 +154,7 @@ def run_doctor(
 
 
 def format_doctor_report(report: DoctorReport) -> str:
-    lines = ["MCPLOCK DOCTOR", ""]
+    lines = ["MCPSEAL DOCTOR", ""]
     for c in report.checks:
         mark = "✔" if c.ok else "⚠"
         lines.append(f"{mark} {c.name}")

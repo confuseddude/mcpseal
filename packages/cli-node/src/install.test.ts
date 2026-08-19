@@ -6,7 +6,7 @@ import { install, uninstall } from "./install.js";
 
 const dirs: string[] = [];
 function tmpDir(): string {
-  const d = mkdtempSync(path.join(tmpdir(), "mcplock-install-test-"));
+  const d = mkdtempSync(path.join(tmpdir(), "mcpseal-install-test-"));
   dirs.push(d);
   return d;
 }
@@ -29,7 +29,7 @@ const ORIGINAL_CONFIG = `{
 `;
 
 describe("install / uninstall (Part 3.3, Tasks.md 2.4)", () => {
-  it("install rewrites each server to route through mcplock proxy <serverName> <original...>", () => {
+  it("install rewrites each server to route through mcpseal proxy <serverName> <original...>", () => {
     const dir = tmpDir();
     writeFileSync(path.join(dir, ".mcp.json"), ORIGINAL_CONFIG, "utf-8");
 
@@ -39,11 +39,11 @@ describe("install / uninstall (Part 3.3, Tasks.md 2.4)", () => {
     const rewritten = JSON.parse(readFileSync(path.join(dir, ".mcp.json"), "utf-8"));
     expect(rewritten.mcpServers.github).toEqual({
       command: "npx",
-      args: ["-y", "mcplock", "proxy", "github", "npx", "-y", "@modelcontextprotocol/server-github"],
+      args: ["-y", "mcpseal", "proxy", "github", "npx", "-y", "@modelcontextprotocol/server-github"],
     });
     expect(rewritten.mcpServers.local).toEqual({
       command: "npx",
-      args: ["-y", "mcplock", "proxy", "local", "node", "server.js"],
+      args: ["-y", "mcpseal", "proxy", "local", "node", "server.js"],
     });
   });
 
@@ -51,7 +51,7 @@ describe("install / uninstall (Part 3.3, Tasks.md 2.4)", () => {
     const dir = tmpDir();
     writeFileSync(path.join(dir, ".mcp.json"), ORIGINAL_CONFIG, "utf-8");
     install(dir);
-    const backup = readFileSync(path.join(dir, ".mcp.json.mcplock-backup"), "utf-8");
+    const backup = readFileSync(path.join(dir, ".mcp.json.mcpseal-backup"), "utf-8");
     expect(backup).toBe(ORIGINAL_CONFIG);
   });
 
@@ -72,7 +72,7 @@ describe("install / uninstall (Part 3.3, Tasks.md 2.4)", () => {
     writeFileSync(path.join(dir, ".mcp.json"), ORIGINAL_CONFIG, "utf-8");
     install(dir);
     uninstall(dir);
-    expect(existsSync(path.join(dir, ".mcp.json.mcplock-backup"))).toBe(false);
+    expect(existsSync(path.join(dir, ".mcp.json.mcpseal-backup"))).toBe(false);
   });
 
   it("install throws if config is missing", () => {
@@ -93,7 +93,7 @@ describe("install / uninstall (Part 3.3, Tasks.md 2.4)", () => {
     expect(() => uninstall(dir)).toThrow();
   });
 
-  it("accepts a custom mcplock invocation (for local dev/testing before publish)", () => {
+  it("accepts a custom mcpseal invocation (for local dev/testing before publish)", () => {
     const dir = tmpDir();
     writeFileSync(path.join(dir, ".mcp.json"), ORIGINAL_CONFIG, "utf-8");
     install(dir, { command: "node", args: ["/path/to/dist/cli.js"] });

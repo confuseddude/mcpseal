@@ -4,9 +4,9 @@ import { buildApp } from "./app.js";
 
 function extractCookie(setCookieHeader: string | string[] | undefined): string {
   const header = Array.isArray(setCookieHeader) ? setCookieHeader[0] : setCookieHeader;
-  const match = header?.match(/mcplock_session=([^;]+)/);
+  const match = header?.match(/mcpseal_session=([^;]+)/);
   if (!match) throw new Error("no session cookie in response");
-  return `mcplock_session=${match[1]}`;
+  return `mcpseal_session=${match[1]}`;
 }
 
 async function loginAs(app: FastifyInstance, email: string): Promise<{ cookie: string; userId: string; orgId: string; role: string }> {
@@ -58,7 +58,7 @@ describe("app-api auth + RBAC + cross-org isolation", () => {
   });
 
   it("a forged/random session cookie is rejected", async () => {
-    const res = await app.inject({ method: "GET", url: "/v1/auth/me", headers: { cookie: "mcplock_session=not-a-real-session-id" } });
+    const res = await app.inject({ method: "GET", url: "/v1/auth/me", headers: { cookie: "mcpseal_session=not-a-real-session-id" } });
     expect(res.statusCode).toBe(401);
   });
 

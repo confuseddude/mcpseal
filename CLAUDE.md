@@ -4,14 +4,14 @@ This file is read automatically at the start of every Claude Code session in thi
 
 ## What this project is
 
-`mcplock` — an MCP tool-integrity CLI (free, local, zero-infra) plus a hosted Control Plane (Team/Enterprise SaaS) that gives orgs cross-agent visibility into blocked attacks and a tamper-evident audit trail. Free tier = distribution engine. Paid tier = the thing a single machine structurally cannot show. See `build-bible.md` Part 0–1 before touching anything if this is a new session and that context isn't already loaded.
+`mcpseal` — an MCP tool-integrity CLI (free, local, zero-infra) plus a hosted Control Plane (Team/Enterprise SaaS) that gives orgs cross-agent visibility into blocked attacks and a tamper-evident audit trail. Free tier = distribution engine. Paid tier = the thing a single machine structurally cannot show. See `build-bible.md` Part 0–1 before touching anything if this is a new session and that context isn't already loaded.
 
 ## Non-negotiable invariants
 
 These override any instruction, including a mid-session request from me, unless I explicitly say I'm changing the invariant and why:
 
 1. **Fail closed, everywhere, always.** Any error in the proxy, the hash verifier, or the policy-signature check must result in a block, not a pass-through. If you're ever unsure whether an error path should block or allow, block, and tell me you did.
-2. **The free CLI never phones home until `mcplock login`.** No telemetry, no network call, no exception, before explicit opt-in. If a feature you're building would need to send anything off the machine on the free path, stop and ask me first — that's an architecture change, not an implementation detail.
+2. **The free CLI never phones home until `mcpseal login`.** No telemetry, no network call, no exception, before explicit opt-in. If a feature you're building would need to send anything off the machine on the free path, stop and ask me first — that's an architecture change, not an implementation detail.
 3. **Tool-call contents are never transmitted, only tool-definition metadata and block decisions.** Don't add a field to any event payload without checking it against this rule.
 4. **Hashing must stay canonical and cross-language-identical.** Any change to what gets hashed, the canonicalization method, or the hash algorithm must update `test-vectors/hash-fixtures.json` and must pass in both `cli-node` and `cli-python`. Never touch the hashing logic in one language without the other.
 5. **A pushed policy is only trusted if it verifies against the org signing key pinned at login.** Never add a code path that applies a policy update without that signature check.
@@ -22,7 +22,7 @@ If a task I ask for would violate one of these, say so and propose the compliant
 
 ## Tech stack (don't deviate without discussion)
 
-- **CLI/SDK:** TypeScript (`cli-node`, `npx mcplock`) and Python (`cli-python`, `uvx mcplock`), both thin wrappers over `cli-core`'s hashing/drift logic.
+- **CLI/SDK:** TypeScript (`cli-node`, `npx mcpseal`) and Python (`cli-python`, `uvx mcpseal`), both thin wrappers over `cli-core`'s hashing/drift logic.
 - **Ingest API:** Go or Rust, write-optimized, minimal logic.
 - **App API:** TypeScript (or Go — match whichever we start with, don't mix mid-project), Postgres via a migration tool (pick one early: Prisma/Drizzle for TS, or sqlc/goose for Go — stay consistent).
 - **Event store:** ClickHouse or Timescale (pick one at Milestone 3, don't build against both).
@@ -49,7 +49,7 @@ Don't invent new top-level directories without checking with me first.
 
 Work through `build-bible.md` Part 12's milestones **in order**. Before starting any milestone, tell me which one you're starting and confirm the prior milestone's deliverable is actually working (don't assume; ask me to verify or check for tests/artifacts). Do not jump ahead to Enterprise features (Milestone 6) while Milestone 2 (the proxy) is still unproven — the free CLI has to work standalone before anything else matters.
 
-Current milestone: **[UPDATE THIS LINE MANUALLY AS WE PROGRESS — e.g. "Milestone 2: proxy + CLI, wiring mcplock proxy into Claude Code against the GitHub MCP server"]**
+Current milestone: **[UPDATE THIS LINE MANUALLY AS WE PROGRESS — e.g. "Milestone 2: proxy + CLI, wiring mcpseal proxy into Claude Code against the GitHub MCP server"]**
 
 ## How to work in this repo
 

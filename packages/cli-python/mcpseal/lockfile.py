@@ -7,7 +7,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
-from mcplock.lockfile_schema import Lockfile
+from mcpseal.lockfile_schema import Lockfile
 
 REQUIRED_TOP_LEVEL_KEYS = ("version", "generatedAt", "generatedBy", "servers", "policy", "signature")
 
@@ -39,7 +39,7 @@ def write_lockfile(path: str, lockfile: Lockfile) -> None:
     Path(path).write_text(json.dumps(lockfile, indent=2), encoding="utf-8")
 
 
-def create_empty_lockfile(generated_by: str = "mcplock@0.1.0") -> Lockfile:
+def create_empty_lockfile(generated_by: str = "mcpseal@0.1.0") -> Lockfile:
     return {
         "version": 1,
         "generatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),

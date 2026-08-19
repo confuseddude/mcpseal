@@ -1,4 +1,4 @@
-// build-bible.md Part 3.2, Tasks.md 2.6: `mcplock diff` — human-readable
+// build-bible.md Part 3.2, Tasks.md 2.6: `mcpseal diff` — human-readable
 // old-vs-new for any drifted tool. Can only text-diff descriptions, since
 // that's the only pre-mutation state the lockfile stores (Tasks.md 2.3
 // Change Log deliberately chose description-only over storing the full

@@ -8,8 +8,8 @@ import sys
 
 import pytest
 
-from mcplock.hash import hash_tool
-from mcplock.proxy import run_proxy
+from mcpseal.hash import hash_tool
+from mcpseal.proxy import run_proxy
 
 STUB_SERVER = os.path.join(os.path.dirname(__file__), "test_fixtures", "stub_server.py")
 PY = sys.executable
@@ -22,7 +22,7 @@ def make_lockfile():
     return {
         "version": 1,
         "generatedAt": "2026-08-17T00:00:00Z",
-        "generatedBy": "mcplock@test",
+        "generatedBy": "mcpseal@test",
         "servers": {
             "stub": {
                 "transport": "stdio",

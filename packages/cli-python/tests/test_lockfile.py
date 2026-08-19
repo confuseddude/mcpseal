@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from mcplock.lockfile import create_empty_lockfile, read_lockfile, write_lockfile
+from mcpseal.lockfile import create_empty_lockfile, read_lockfile, write_lockfile
 
 
 def test_create_empty_lockfile_matches_part_2_3_skeleton():
@@ -20,7 +20,7 @@ def test_create_empty_lockfile_matches_part_2_3_skeleton():
 
 def test_write_then_read_round_trips_exactly(tmp_path):
     file_path = tmp_path / ".mcp-lock.json"
-    original = create_empty_lockfile("mcplock@test")
+    original = create_empty_lockfile("mcpseal@test")
     original["servers"]["github"] = {
         "transport": "stdio",
         "command": "npx",

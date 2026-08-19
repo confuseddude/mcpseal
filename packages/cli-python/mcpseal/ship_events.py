@@ -13,12 +13,12 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 
-from mcplock.config import config_path as default_config_path, read_config, write_config
-from mcplock.event_log import McplockEvent, events_log_path, read_events
-from mcplock.http_client import HttpRequestFn, request as default_request
-from mcplock.keychain import get_secret
-from mcplock.login import API_KEY_ACCOUNT
-from mcplock.machine_identity import PRIVATE_KEY_ACCOUNT, sign_with_machine_key
+from mcpseal.config import config_path as default_config_path, read_config, write_config
+from mcpseal.event_log import McpsealEvent, events_log_path, read_events
+from mcpseal.http_client import HttpRequestFn, request as default_request
+from mcpseal.keychain import get_secret
+from mcpseal.login import API_KEY_ACCOUNT
+from mcpseal.machine_identity import PRIVATE_KEY_ACCOUNT, sign_with_machine_key
 
 MAX_BATCH_SIZE = 500
 
@@ -31,7 +31,7 @@ class ShipResult:
     duplicates: int = 0
 
 
-def _index_after(events: list[McplockEvent], last_shipped_event_id: str) -> int:
+def _index_after(events: list[McpsealEvent], last_shipped_event_id: str) -> int:
     for i, e in enumerate(events):
         if e["eventId"] == last_shipped_event_id:
             return i + 1
@@ -78,7 +78,7 @@ def ship_events(
                 {
                     "content-type": "application/json",
                     "authorization": f"Bearer {api_key_token}",
-                    "x-mcplock-signature": signature,
+                    "x-mcpseal-signature": signature,
                 },
                 raw,
             )

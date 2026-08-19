@@ -1,15 +1,15 @@
 # Mirrors packages/cli-node/src/scan.ts. build-bible.md Part 3.2, Tasks.md
-# 2.6: `mcplock scan` — one-shot re-hash of all currently configured tools
+# 2.6: `mcpseal scan` — one-shot re-hash of all currently configured tools
 # against the lockfile, CI-friendly (non-zero exit on any drift/block).
 from __future__ import annotations
 
 import os
 from typing import TypedDict
 
-from mcplock.config_discovery import discover_servers_from_claude_code_project_config
-from mcplock.drift import DriftResult, check_drift
-from mcplock.lockfile import read_lockfile
-from mcplock.mcp_client import McpStdioClient
+from mcpseal.config_discovery import discover_servers_from_claude_code_project_config
+from mcpseal.drift import DriftResult, check_drift
+from mcpseal.lockfile import read_lockfile
+from mcpseal.mcp_client import McpStdioClient
 
 
 class ScanDecision(TypedDict):

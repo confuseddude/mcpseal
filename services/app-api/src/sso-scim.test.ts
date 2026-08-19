@@ -5,9 +5,9 @@ import { buildApp } from "./app.js";
 
 function extractCookie(setCookieHeader: string | string[] | undefined): string {
   const header = Array.isArray(setCookieHeader) ? setCookieHeader[0] : setCookieHeader;
-  const match = header?.match(/mcplock_session=([^;]+)/);
+  const match = header?.match(/mcpseal_session=([^;]+)/);
   if (!match) throw new Error("no session cookie in response");
-  return `mcplock_session=${match[1]}`;
+  return `mcpseal_session=${match[1]}`;
 }
 
 async function loginAs(app: FastifyInstance, email: string) {
@@ -17,7 +17,7 @@ async function loginAs(app: FastifyInstance, email: string) {
 }
 
 async function upgradeToEnterprise(app: FastifyInstance, orgId: string) {
-  const db = (app as unknown as { mcplockDb: import("better-sqlite3").Database }).mcplockDb;
+  const db = (app as unknown as { mcpsealDb: import("better-sqlite3").Database }).mcpsealDb;
   db.prepare(
     "INSERT INTO subscriptions (id, org_id, stripe_customer_id, stripe_sub_id, plan, seats, status) VALUES (?, ?, 'c', 's', 'enterprise', 1, 'active')"
   ).run(randomUUID(), orgId);

@@ -9,7 +9,7 @@ import os
 from typing import TypedDict
 
 
-class McplockConfig(TypedDict, total=False):
+class McpsealConfig(TypedDict, total=False):
     workspaceId: str
     machineId: str
     ingestUrl: str
@@ -22,13 +22,13 @@ class McplockConfig(TypedDict, total=False):
 
 
 def config_path() -> str:
-    return os.path.join(os.path.expanduser("~"), ".mcplock", "config.json")
+    return os.path.join(os.path.expanduser("~"), ".mcpseal", "config.json")
 
 
 # Absence of this file (or of a config entirely) is the CLI's definition of
 # "not logged in" — CLAUDE.md invariant 2 depends on this being reliably
 # checkable before anything ever touches the network.
-def read_config(cfg_path: str | None = None) -> McplockConfig | None:
+def read_config(cfg_path: str | None = None) -> McpsealConfig | None:
     resolved = cfg_path or config_path()
     if not os.path.exists(resolved):
         return None
@@ -39,7 +39,7 @@ def read_config(cfg_path: str | None = None) -> McplockConfig | None:
         return None
 
 
-def write_config(config: McplockConfig, cfg_path: str | None = None) -> None:
+def write_config(config: McpsealConfig, cfg_path: str | None = None) -> None:
     resolved = cfg_path or config_path()
     os.makedirs(os.path.dirname(resolved), exist_ok=True)
     with open(resolved, "w", encoding="utf-8") as f:

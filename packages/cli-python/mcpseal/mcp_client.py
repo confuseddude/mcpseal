@@ -1,6 +1,6 @@
 # Mirrors packages/cli-node/src/mcp-client.ts: a minimal MCP stdio client,
 # newline-delimited JSON-RPC (empirically confirmed against a real reference
-# server — see Tasks.md 2.1). Lives in the CLI package, not mcplock's
+# server — see Tasks.md 2.1). Lives in the CLI package, not mcpseal's
 # hashing/drift core, for the same reason as the TS version: spawning
 # processes and speaking a wire protocol is CLI plumbing, not the
 # canonical, trust-critical hashing spec.
@@ -12,7 +12,7 @@ import threading
 import time
 from typing import Any, TypedDict
 
-from mcplock.process_utils import kill_process_tree
+from mcpseal.process_utils import kill_process_tree
 
 DEFAULT_TIMEOUT_S = 15.0
 
@@ -113,7 +113,7 @@ class McpStdioClient:
             {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {},
-                "clientInfo": {"name": "mcplock", "version": "0.1.0"},
+                "clientInfo": {"name": "mcpseal", "version": "0.1.0"},
             },
         )
         self._notify("notifications/initialized")

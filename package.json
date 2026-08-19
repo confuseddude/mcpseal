@@ -1,5 +1,5 @@
 {
-  "name": "mcplock-monorepo",
+  "name": "mcpseal-monorepo",
   "private": true,
   "packageManager": "pnpm@9.0.0",
   "scripts": {

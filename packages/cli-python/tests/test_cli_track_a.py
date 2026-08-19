@@ -1,14 +1,14 @@
 # Track A: exercises cli.main() directly (argv-in, exit-code-out) rather
 # than a subprocess, mirroring the Node side's real-binary rigor closely
 # enough for a pure-stdlib CLI: main() IS what the installed console
-# script calls (mcplock.cli:entrypoint just wraps main() with sys.exit).
+# script calls (mcpseal.cli:entrypoint just wraps main() with sys.exit).
 import json
 import os
 import sys
 
 import pytest
 
-from mcplock.cli import main
+from mcpseal.cli import main
 
 STUB_SERVER = os.path.join(os.path.dirname(__file__), "test_fixtures", "stub_server.py")
 PY = sys.executable
@@ -27,7 +27,7 @@ def test_status_exits_0_even_with_no_lockfile(project, capsys):
     assert code == 0
     assert "LOCAL HEALTH" in out
     assert "CONTROL PLANE" in out
-    assert "mcplock init" in out
+    assert "mcpseal init" in out
 
 
 def test_status_json_is_valid_and_shaped(project, capsys):
@@ -44,14 +44,14 @@ def test_doctor_exits_nonzero_when_local_health_has_failures(project, capsys):
     code = main(["doctor", project])
     out = capsys.readouterr().out
     assert code != 0
-    assert "MCPLOCK DOCTOR" in out
-    assert "mcplock init" in out
+    assert "MCPSEAL DOCTOR" in out
+    assert "mcpseal init" in out
 
 
 def test_doctor_exits_0_once_init_and_install_done(project, capsys):
     assert main(["init", project]) == 0
     capsys.readouterr()
-    with open(os.path.join(project, ".mcp.json.mcplock-backup"), "w", encoding="utf-8") as f:
+    with open(os.path.join(project, ".mcp.json.mcpseal-backup"), "w", encoding="utf-8") as f:
         f.write("{}")
     code = main(["doctor", project])
     out = capsys.readouterr().out
@@ -94,7 +94,7 @@ def test_proxy_with_no_lockfile_shows_remediation_not_a_raw_stack_trace(project,
     err = capsys.readouterr().err
     assert code == 1
     assert "LOCKFILE_NOT_FOUND" in err
-    assert "mcplock init" in err
+    assert "mcpseal init" in err
     assert "Traceback" not in err
 
 

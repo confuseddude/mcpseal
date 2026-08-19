@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Lockfile } from "@mcplock/shared-types";
+import type { Lockfile } from "@mcpseal/shared-types";
 import { hashTool, type McpTool } from "./hash.js";
 import { checkDrift } from "./drift.js";
 
@@ -13,7 +13,7 @@ function baseLockfile(overrides?: Partial<Lockfile["servers"][string]["tools"][s
   return {
     version: 1,
     generatedAt: "2026-08-17T00:00:00Z",
-    generatedBy: "mcplock@test",
+    generatedBy: "mcpseal@test",
     servers: {
       github: {
         transport: "stdio",

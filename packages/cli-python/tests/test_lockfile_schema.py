@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from mcplock.lockfile_schema import Lockfile
+from mcpseal.lockfile_schema import Lockfile
 
 FIXTURE = (
     Path(__file__).resolve().parents[3]

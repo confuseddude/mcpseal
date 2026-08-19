@@ -1,4 +1,4 @@
-from mcplock.command_hash import hash_command
+from mcpseal.command_hash import hash_command
 
 
 def test_same_command_args_same_hash():

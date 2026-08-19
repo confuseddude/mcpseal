@@ -19,7 +19,7 @@ export default function SettingsPage() {
     setConnectStatus(null);
     try {
       await api.connectMachine(connectCode.trim());
-      setConnectStatus({ kind: "ok", message: "Approved — the waiting mcplock login on that machine will pick this up automatically." });
+      setConnectStatus({ kind: "ok", message: "Approved — the waiting mcpseal login on that machine will pick this up automatically." });
       setConnectCode("");
     } catch (err) {
       const message = err instanceof ApiError ? err.message : "Could not connect that code.";
@@ -50,7 +50,7 @@ export default function SettingsPage() {
 
       <Section title="Connect a machine">
         <p className="mb-3 text-sm text-[var(--color-text-dim)]">
-          Run <span className="font-data text-[var(--color-text)]">mcplock login</span> on a machine, then enter the
+          Run <span className="font-data text-[var(--color-text)]">mcpseal login</span> on a machine, then enter the
           code it prints here to approve it into this workspace.
         </p>
         <form onSubmit={handleConnect} className="flex items-center gap-2">
@@ -122,7 +122,7 @@ export default function SettingsPage() {
           <Loading />
         ) : apiKeys.length === 0 ? (
           <p className="text-sm text-[var(--color-text-dim)]">
-            None yet. Run <span className="font-data text-[var(--color-text)]">mcplock login</span> on a machine to
+            None yet. Run <span className="font-data text-[var(--color-text)]">mcpseal login</span> on a machine to
             create one.
           </p>
         ) : (

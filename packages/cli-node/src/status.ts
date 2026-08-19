@@ -1,13 +1,13 @@
-// Track A: `mcplock status` — a structured, offline-first snapshot of
+// Track A: `mcpseal status` — a structured, offline-first snapshot of
 // local health, kept separate from the Control Plane connectivity probe
 // (doctor.ts does that; status never makes a network call, so it can
 // never be slow or fail because of network conditions — it answers "what
 // does this machine currently believe," not "is the network up").
 import path from "node:path";
 import { existsSync } from "node:fs";
-import { readLockfile } from "@mcplock/cli-core";
+import { readLockfile } from "@mcpseal/cli-core";
 import { readConfig } from "./config.js";
-import { eventsLogPath, readEvents, recentBlocks, type McplockEvent } from "./event-log.js";
+import { eventsLogPath, readEvents, recentBlocks, type McpsealEvent } from "./event-log.js";
 
 export interface LocalStatus {
   lockfilePresent: boolean;
@@ -17,7 +17,7 @@ export interface LocalStatus {
   proxyInstalled: boolean;
   eventCount: number;
   blockCount: number;
-  recentBlocks: McplockEvent[];
+  recentBlocks: McpsealEvent[];
 }
 
 export interface ConnectionStatus {
@@ -43,7 +43,7 @@ export function buildStatusReport(projectDir: string = process.cwd(), opts: Stat
   const lockfilePath = opts.lockfilePath ?? path.join(projectDir, ".mcp-lock.json");
   const local: LocalStatus = {
     lockfilePresent: false,
-    proxyInstalled: existsSync(path.join(projectDir, ".mcp.json.mcplock-backup")),
+    proxyInstalled: existsSync(path.join(projectDir, ".mcp.json.mcpseal-backup")),
     eventCount: 0,
     blockCount: 0,
     recentBlocks: [],
@@ -84,10 +84,10 @@ export function formatStatusReport(report: StatusReport): string {
     lines.push(`  lockfile:  present (${report.local.serverCount} server(s), ${report.local.toolCount} tool(s) pinned)`);
   } else {
     lines.push(`  lockfile:  MISSING or invalid${report.local.lockfileError ? ` — ${report.local.lockfileError}` : ""}`);
-    lines.push(`             next: mcplock init`);
+    lines.push(`             next: mcpseal init`);
   }
   lines.push(`  proxy:     ${report.local.proxyInstalled ? "installed" : "not installed — MCP servers launch unprotected"}`);
-  if (!report.local.proxyInstalled) lines.push(`             next: mcplock install`);
+  if (!report.local.proxyInstalled) lines.push(`             next: mcpseal install`);
   lines.push(`  events:    ${report.local.eventCount} recorded, ${report.local.blockCount} block(s) total`);
   for (const b of report.local.recentBlocks) {
     lines.push(`    [${b.ts}] ${b.type} — ${b.server}/${b.tool}`);
@@ -100,10 +100,10 @@ export function formatStatusReport(report: StatusReport): string {
     if (report.connection.lastAppliedPolicyVersion !== undefined) {
       lines.push(`  policy:    version ${report.connection.lastAppliedPolicyVersion} last applied`);
     }
-    lines.push(`  next:      mcplock doctor   # checks live connectivity`);
+    lines.push(`  next:      mcpseal doctor   # checks live connectivity`);
   } else {
     lines.push("  not logged in — running fully local, no workspace connection.");
-    lines.push("  next:      mcplock login   # optional; local enforcement already works without it");
+    lines.push("  next:      mcpseal login   # optional; local enforcement already works without it");
   }
 
   return lines.join("\n");

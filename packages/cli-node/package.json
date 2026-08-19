@@ -1,5 +1,5 @@
 {
-  "name": "mcplock",
+  "name": "mcpseal",
   "version": "0.1.0",
   "private": false,
   "type": "module",
@@ -14,7 +14,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "mcplock": "dist/cli.js"
+    "mcpseal": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json && node esbuild.bundle-cli.mjs",
@@ -25,8 +25,8 @@
     "@noble/curves": "^2.3.0"
   },
   "devDependencies": {
-    "@mcplock/cli-core": "workspace:^",
-    "@mcplock/shared-types": "workspace:^",
+    "@mcpseal/cli-core": "workspace:^",
+    "@mcpseal/shared-types": "workspace:^",
     "@types/node": "^26.2.0",
     "esbuild": "^0.28.2",
     "typescript": "^7.0.2",

@@ -31,7 +31,7 @@ export interface Me {
   role: "owner" | "admin" | "member" | "viewer";
 }
 
-export interface McplockEventRow {
+export interface McpsealEventRow {
   event_id: string;
   workspace_id: string;
   machine_id: string;
@@ -52,7 +52,7 @@ export interface MachineRow {
   workspace_id: string;
   first_seen: string;
   last_seen: string;
-  mcplock_version: string | null;
+  mcpseal_version: string | null;
 }
 
 export interface PolicyRow {
@@ -88,7 +88,7 @@ export const api = {
   members: () => request<{ members: Me[] }>("/v1/members"),
   setRole: (userId: string, role: Me["role"]) =>
     request<{ ok: true }>(`/v1/members/${userId}/role`, { method: "PATCH", body: JSON.stringify({ role }) }),
-  events: (limit = 100) => request<{ events: McplockEventRow[] }>(`/v1/events?limit=${limit}`),
+  events: (limit = 100) => request<{ events: McpsealEventRow[] }>(`/v1/events?limit=${limit}`),
   machines: () => request<{ machines: MachineRow[] }>("/v1/machines"),
   policies: () => request<{ policies: PolicyRow[] }>("/v1/policies"),
   createPolicy: (lockfileJson: string) => request<{ policy: PolicyRow }>("/v1/policies", { method: "POST", body: JSON.stringify({ lockfileJson }) }),

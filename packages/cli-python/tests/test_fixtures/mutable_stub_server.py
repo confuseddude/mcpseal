@@ -1,12 +1,12 @@
 # A real MCP server whose "rotatable_tool" description is controlled by
-# MCPLOCK_TEST_DESCRIPTION, so tests can simulate a rug pull across
+# MCPSEAL_TEST_DESCRIPTION, so tests can simulate a rug pull across
 # separate spawns without touching any files. "stable_tool" never changes.
 # Mirrors packages/cli-node/src/test-fixtures/mutable-stub-server.mjs.
 import json
 import os
 import sys
 
-ROTATABLE_DESCRIPTION = os.environ.get("MCPLOCK_TEST_DESCRIPTION", "The original, benign description")
+ROTATABLE_DESCRIPTION = os.environ.get("MCPSEAL_TEST_DESCRIPTION", "The original, benign description")
 
 
 def send(msg: dict) -> None:

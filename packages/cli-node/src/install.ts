@@ -1,7 +1,7 @@
-// build-bible.md Part 3.3 / Tasks.md 2.4: `mcplock install` rewrites each
+// build-bible.md Part 3.3 / Tasks.md 2.4: `mcpseal install` rewrites each
 // server entry in the client config so the client launches
-// `mcplock proxy <serverName> <original-command...>` instead of the
-// original command directly. `mcplock uninstall` reverses it exactly.
+// `mcpseal proxy <serverName> <original-command...>` instead of the
+// original command directly. `mcpseal uninstall` reverses it exactly.
 //
 // Byte-for-byte guarantee: rather than regenerating JSON and hoping it
 // matches the original formatting, install() snapshots the exact original
@@ -10,15 +10,15 @@
 import { existsSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
 import path from "node:path";
 
-const BACKUP_SUFFIX = ".mcplock-backup";
+const BACKUP_SUFFIX = ".mcpseal-backup";
 
-export interface McplockInvocation {
+export interface McpsealInvocation {
   command: string;
   args: string[];
 }
 
-// Default matches Part 3.1's zero-install distribution model ("npx mcplock").
-const DEFAULT_MCPLOCK_INVOCATION: McplockInvocation = { command: "npx", args: ["-y", "mcplock"] };
+// Default matches Part 3.1's zero-install distribution model ("npx mcpseal").
+const DEFAULT_MCPSEAL_INVOCATION: McpsealInvocation = { command: "npx", args: ["-y", "mcpseal"] };
 
 export interface InstallResult {
   configPath: string;
@@ -26,7 +26,7 @@ export interface InstallResult {
   serverCount: number;
 }
 
-export function install(projectDir: string, mcplockInvocation: McplockInvocation = DEFAULT_MCPLOCK_INVOCATION): InstallResult {
+export function install(projectDir: string, mcpsealInvocation: McpsealInvocation = DEFAULT_MCPSEAL_INVOCATION): InstallResult {
   const configPath = path.join(projectDir, ".mcp.json");
   const backupPath = configPath + BACKUP_SUFFIX;
 
@@ -34,7 +34,7 @@ export function install(projectDir: string, mcplockInvocation: McplockInvocation
     throw new Error(`install: no config found at ${configPath}`);
   }
   if (existsSync(backupPath)) {
-    throw new Error(`install: ${backupPath} already exists — mcplock appears to already be installed here`);
+    throw new Error(`install: ${backupPath} already exists — mcpseal appears to already be installed here`);
   }
 
   const originalBytes = readFileSync(configPath, "utf-8");
@@ -56,8 +56,8 @@ export function install(projectDir: string, mcplockInvocation: McplockInvocation
   for (const [name, raw] of Object.entries(mcpServers)) {
     const entry = raw as { command: string; args?: string[] };
     rewritten[name] = {
-      command: mcplockInvocation.command,
-      args: [...mcplockInvocation.args, "proxy", name, entry.command, ...(entry.args ?? [])],
+      command: mcpsealInvocation.command,
+      args: [...mcpsealInvocation.args, "proxy", name, entry.command, ...(entry.args ?? [])],
     };
     serverCount++;
   }
@@ -81,7 +81,7 @@ export function uninstall(projectDir: string): UninstallResult {
   const backupPath = configPath + BACKUP_SUFFIX;
 
   if (!existsSync(backupPath)) {
-    throw new Error(`uninstall: no backup found at ${backupPath} — mcplock does not appear to be installed here`);
+    throw new Error(`uninstall: no backup found at ${backupPath} — mcpseal does not appear to be installed here`);
   }
 
   const originalBytes = readFileSync(backupPath, "utf-8");

@@ -51,7 +51,7 @@ importers:
 
   packages/cli-core:
     dependencies:
-      '@mcplock/shared-types':
+      '@mcpseal/shared-types':
         specifier: workspace:^
         version: link:../shared-types
       canonicalize:
@@ -77,10 +77,10 @@ importers:
         specifier: ^2.3.0
         version: 2.3.0
     devDependencies:
-      '@mcplock/cli-core':
+      '@mcpseal/cli-core':
         specifier: workspace:^
         version: link:../cli-core
-      '@mcplock/shared-types':
+      '@mcpseal/shared-types':
         specifier: workspace:^
         version: link:../shared-types
       '@types/node':
@@ -113,7 +113,7 @@ importers:
       '@fastify/cors':
         specifier: ^11.3.0
         version: 11.3.0
-      '@mcplock/shared-types':
+      '@mcpseal/shared-types':
         specifier: workspace:^
         version: link:../../packages/shared-types
       '@noble/curves':
@@ -165,7 +165,7 @@ importers:
 
   services/ingest:
     dependencies:
-      '@mcplock/shared-types':
+      '@mcpseal/shared-types':
         specifier: workspace:^
         version: link:../../packages/shared-types
       '@noble/curves':

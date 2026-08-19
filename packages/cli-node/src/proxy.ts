@@ -1,4 +1,4 @@
-// build-bible.md Part 3.3: `mcplock proxy` — the transparent stdio wrapper.
+// build-bible.md Part 3.3: `mcpseal proxy` — the transparent stdio wrapper.
 // This is the core enforcement point: it sits between the real MCP client
 // (stdin/stdout of this process) and the real MCP server (a spawned child
 // process), passing ordinary traffic through byte-for-byte, and intercepting
@@ -11,8 +11,8 @@
 // errors in the interception plumbing around it (e.g. an unexpected
 // response shape from the child).
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
-import { checkDrift, type DriftResult } from "@mcplock/cli-core";
-import type { Lockfile } from "@mcplock/shared-types";
+import { checkDrift, type DriftResult } from "@mcpseal/cli-core";
+import type { Lockfile } from "@mcpseal/shared-types";
 import type { McpServerCommand, McpToolDefinition } from "./mcp-client.js";
 import { killProcessTree } from "./process-utils.js";
 
@@ -104,7 +104,7 @@ export function runProxy(options: ProxyOptions): ProxyHandle {
   // spawned child. Without this, a client that exits or closes its pipe
   // leaves the child running as an orphan indefinitely, and `closed`
   // (which resolves on the child's own exit) never resolves — hanging
-  // `mcplock proxy` itself. `.end()` is safe to call even if the child has
+  // `mcpseal proxy` itself. `.end()` is safe to call even if the child has
   // already exited on its own.
   const onClientEnd = () => {
     if (!child.stdin.destroyed) child.stdin.end();

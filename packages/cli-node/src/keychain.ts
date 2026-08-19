@@ -9,7 +9,7 @@
 // must fail loudly, not silently degrade to a dotfile.
 import { Entry } from "@napi-rs/keyring";
 
-const SERVICE = "mcplock";
+const SERVICE = "mcpseal";
 
 export function setSecret(account: string, secret: string): void {
   const entry = new Entry(SERVICE, account);

@@ -14,7 +14,7 @@ const cliJsPath = path.join(path.dirname(fileURLToPath(import.meta.url)), "..", 
 
 const dirs: string[] = [];
 function tmpProject(): string {
-  const d = mkdtempSync(path.join(tmpdir(), "mcplock-track-a-test-"));
+  const d = mkdtempSync(path.join(tmpdir(), "mcpseal-track-a-test-"));
   dirs.push(d);
   writeFileSync(path.join(d, ".mcp.json"), JSON.stringify({ mcpServers: { stub: { command: "node", args: [stubServerPath] } } }));
   return d;
@@ -27,14 +27,14 @@ function run(args: string[], cwd?: string) {
   return spawnSync("node", [cliJsPath, ...args], { encoding: "utf-8", cwd });
 }
 
-describe("mcplock status", () => {
+describe("mcpseal status", () => {
   it("exits 0 and reports LOCAL HEALTH / CONTROL PLANE even with no lockfile at all (offline-first)", () => {
     const dir = tmpProject();
     const res = run(["status", dir]);
     expect(res.status).toBe(0);
     expect(res.stdout).toContain("LOCAL HEALTH");
     expect(res.stdout).toContain("CONTROL PLANE");
-    expect(res.stdout).toContain("mcplock init");
+    expect(res.stdout).toContain("mcpseal init");
   });
 
   it("--json produces valid, parseable JSON with the expected shape", () => {
@@ -48,20 +48,20 @@ describe("mcplock status", () => {
   });
 });
 
-describe("mcplock doctor", () => {
+describe("mcpseal doctor", () => {
   it("exits non-zero when local health has failures (no lockfile), and explains why", () => {
     const dir = tmpProject();
     const res = run(["doctor", dir]);
     expect(res.status).not.toBe(0);
-    expect(res.stdout).toContain("MCPLOCK DOCTOR");
-    expect(res.stdout).toContain("mcplock init");
+    expect(res.stdout).toContain("MCPSEAL DOCTOR");
+    expect(res.stdout).toContain("mcpseal init");
   });
 
   it("exits 0 once init + install have been run", () => {
     const dir = tmpProject();
     const init = run(["init", dir]);
     expect(init.status).toBe(0);
-    writeFileSync(path.join(dir, ".mcp.json.mcplock-backup"), "{}");
+    writeFileSync(path.join(dir, ".mcp.json.mcpseal-backup"), "{}");
     const res = run(["doctor", dir]);
     expect(res.status).toBe(0);
     expect(res.stdout).toContain("healthy");
@@ -77,7 +77,7 @@ describe("mcplock doctor", () => {
   });
 });
 
-describe("mcplock scan --json", () => {
+describe("mcpseal scan --json", () => {
   it("matches the plain-mode exit code (0 clean)", () => {
     const dir = tmpProject();
     run(["init", dir]);
@@ -91,7 +91,7 @@ describe("mcplock scan --json", () => {
   }, 15_000);
 });
 
-describe("mcplock logout", () => {
+describe("mcpseal logout", () => {
   it("clears local config without error even when never logged in (idempotent)", () => {
     const dir = tmpProject();
     const res = run(["logout"], dir);
@@ -101,12 +101,12 @@ describe("mcplock logout", () => {
 });
 
 describe("unrecognized error paths get real remediation text, not a bare stack trace", () => {
-  it("readLockfile failure via `mcplock proxy` on a project with no lockfile shows LOCKFILE_NOT_FOUND guidance", () => {
+  it("readLockfile failure via `mcpseal proxy` on a project with no lockfile shows LOCKFILE_NOT_FOUND guidance", () => {
     const dir = tmpProject();
     const res = run(["proxy", "stub", "node", stubServerPath], dir);
     expect(res.status).not.toBe(0);
     expect(res.stderr).toContain("LOCKFILE_NOT_FOUND");
-    expect(res.stderr).toContain("mcplock init");
+    expect(res.stderr).toContain("mcpseal init");
   });
 
   it("approve on an unconfigured server shows SERVER_NOT_CONFIGURED guidance, not a raw stack trace", () => {

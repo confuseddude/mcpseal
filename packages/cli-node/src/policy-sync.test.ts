@@ -40,7 +40,7 @@ describe("pullAndApplyPolicy — signed policy verification attack matrix", () =
   let lockfilePath: string;
 
   function setup(orgPublicKeyHex?: string, lastAppliedPolicyVersion?: number) {
-    tmpDir = mkdtempSync(path.join(tmpdir(), "mcplock-policy-sync-test-"));
+    tmpDir = mkdtempSync(path.join(tmpdir(), "mcpseal-policy-sync-test-"));
     cfgPath = path.join(tmpDir, "config.json");
     lockfilePath = path.join(tmpDir, ".mcp-lock.json");
     writeConfig(
@@ -168,7 +168,7 @@ describe("pullAndApplyPolicy — signed policy verification attack matrix", () =
   });
 
   it("not logged in (no config at all): skips cleanly, never calls fetch", async () => {
-    tmpDir = mkdtempSync(path.join(tmpdir(), "mcplock-policy-sync-test-"));
+    tmpDir = mkdtempSync(path.join(tmpdir(), "mcpseal-policy-sync-test-"));
     cfgPath = path.join(tmpDir, "config.json"); // never written
     lockfilePath = path.join(tmpDir, ".mcp-lock.json");
     const fetchImpl = (() => {

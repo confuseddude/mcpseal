@@ -1,5 +1,5 @@
 # Mirrors packages/cli-node/src/event-log.ts. build-bible.md Part 3.4/4.2,
-# Tasks.md 2.5: local append-only event log at ~/.mcplock/events.jsonl.
+# Tasks.md 2.5: local append-only event log at ~/.mcpseal/events.jsonl.
 # Purely local, no account required (CLAUDE.md invariant 2).
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from typing import TypedDict
 
 
-class McplockEvent(TypedDict, total=False):
+class McpsealEvent(TypedDict, total=False):
     eventId: str
     ts: str
     type: str
@@ -20,11 +20,11 @@ class McplockEvent(TypedDict, total=False):
     expectedHash: str
     descriptionDiff: str
     clientApp: str
-    mcplockVersion: str
+    mcpsealVersion: str
 
 
 def events_log_path() -> str:
-    return os.path.join(os.path.expanduser("~"), ".mcplock", "events.jsonl")
+    return os.path.join(os.path.expanduser("~"), ".mcpseal", "events.jsonl")
 
 
 def append_event(
@@ -44,14 +44,14 @@ def append_event(
     # fail-closed.
     resolved_path = log_path or events_log_path()
     try:
-        event: McplockEvent = {
+        event: McpsealEvent = {
             "eventId": str(uuid.uuid4()),
             "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
             "type": type_,
             "server": server,
             "tool": tool,
             "clientApp": client_app,
-            "mcplockVersion": "0.1.0",
+            "mcpsealVersion": "0.1.0",
         }
         if observed_hash is not None:
             event["observedHash"] = observed_hash
@@ -64,14 +64,14 @@ def append_event(
         with open(resolved_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(event) + "\n")
     except OSError as err:
-        print(f"mcplock: warning: could not write to local event log: {err}")
+        print(f"mcpseal: warning: could not write to local event log: {err}")
 
 
-def read_events(log_path: str | None = None) -> list[McplockEvent]:
+def read_events(log_path: str | None = None) -> list[McpsealEvent]:
     resolved_path = log_path or events_log_path()
     if not os.path.exists(resolved_path):
         return []
-    events: list[McplockEvent] = []
+    events: list[McpsealEvent] = []
     with open(resolved_path, "r", encoding="utf-8") as f:
         for line in f:
             if not line.strip():
@@ -83,7 +83,7 @@ def read_events(log_path: str | None = None) -> list[McplockEvent]:
     return events
 
 
-def recent_blocks(events: list[McplockEvent], limit: int = 10) -> list[McplockEvent]:
+def recent_blocks(events: list[McpsealEvent], limit: int = 10) -> list[McpsealEvent]:
     blocked = [e for e in events if e["type"].startswith("blocked")]
     blocked.sort(key=lambda e: e["ts"], reverse=True)
     return blocked[:limit]

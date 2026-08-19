@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
 
-export interface McplockConfig {
+export interface McpsealConfig {
   workspaceId: string;
   machineId: string;
   ingestUrl: string;
@@ -20,13 +20,13 @@ export interface McplockConfig {
 }
 
 export function configPath(): string {
-  return path.join(homedir(), ".mcplock", "config.json");
+  return path.join(homedir(), ".mcpseal", "config.json");
 }
 
 // Absence of this file (or of a config entirely) is the CLI's definition of
 // "not logged in" — CLAUDE.md invariant 2 depends on this being reliably
 // checkable before anything ever touches the network.
-export function readConfig(cfgPath: string = configPath()): McplockConfig | null {
+export function readConfig(cfgPath: string = configPath()): McpsealConfig | null {
   if (!existsSync(cfgPath)) return null;
   try {
     return JSON.parse(readFileSync(cfgPath, "utf-8"));
@@ -35,7 +35,7 @@ export function readConfig(cfgPath: string = configPath()): McplockConfig | null
   }
 }
 
-export function writeConfig(config: McplockConfig, cfgPath: string = configPath()): void {
+export function writeConfig(config: McpsealConfig, cfgPath: string = configPath()): void {
   mkdirSync(path.dirname(cfgPath), { recursive: true });
   writeFileSync(cfgPath, JSON.stringify(config, null, 2), "utf-8");
 }

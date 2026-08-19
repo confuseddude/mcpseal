@@ -45,7 +45,7 @@ export class McpStdioClient {
       cwd: options?.cwd,
       shell: options?.shell ?? true,
     });
-    // Forward the spawned process's stderr so diagnostics (e.g. mcplock
+    // Forward the spawned process's stderr so diagnostics (e.g. mcpseal
     // proxy's own "blocked tool" logging) are visible to whoever is running
     // this client, not silently buffered in an unread pipe.
     this.child.stderr.pipe(process.stderr);
@@ -132,7 +132,7 @@ export class McpStdioClient {
     const result = await this.request("initialize", {
       protocolVersion: "2024-11-05",
       capabilities: {},
-      clientInfo: { name: "mcplock", version: "0.1.0" },
+      clientInfo: { name: "mcpseal", version: "0.1.0" },
     });
     this.notify("notifications/initialized");
     return result;

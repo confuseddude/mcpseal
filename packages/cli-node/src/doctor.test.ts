@@ -1,4 +1,4 @@
-// Track A: `mcplock doctor` — read-only diagnostics. Critically: Control
+// Track A: `mcpseal doctor` — read-only diagnostics. Critically: Control
 // Plane unreachability must never fail `allLocalOk`, and local checks
 // must never depend on network availability (offline-first, Part 13).
 import { describe, it, expect, afterEach } from "vitest";
@@ -14,7 +14,7 @@ const stubServerPath = path.join(path.dirname(fileURLToPath(import.meta.url)), "
 
 const dirs: string[] = [];
 function tmpProject(): string {
-  const d = mkdtempSync(path.join(tmpdir(), "mcplock-doctor-test-"));
+  const d = mkdtempSync(path.join(tmpdir(), "mcpseal-doctor-test-"));
   dirs.push(d);
   return d;
 }
@@ -31,7 +31,7 @@ describe("runDoctor — local checks", () => {
     const dir = tmpProject();
     writeFileSync(path.join(dir, ".mcp.json"), JSON.stringify({ mcpServers: { stub: { command: "node", args: [stubServerPath] } } }));
     await init({ projectDir: dir });
-    writeFileSync(path.join(dir, ".mcp.json.mcplock-backup"), "{}");
+    writeFileSync(path.join(dir, ".mcp.json.mcpseal-backup"), "{}");
 
     const report = await runDoctor(dir, isolatedOpts(dir));
     const lockfileCheck = report.checks.find((c) => c.name === "Lockfile");
@@ -39,29 +39,29 @@ describe("runDoctor — local checks", () => {
     expect(report.allLocalOk).toBe(true);
   }, 15_000);
 
-  it("flags a missing lockfile with a `mcplock init` remediation", async () => {
+  it("flags a missing lockfile with a `mcpseal init` remediation", async () => {
     const dir = tmpProject();
     const report = await runDoctor(dir, isolatedOpts(dir));
     const lockfileCheck = report.checks.find((c) => c.name === "Lockfile");
     expect(lockfileCheck?.ok).toBe(false);
-    expect(lockfileCheck?.remediation).toContain("mcplock init");
+    expect(lockfileCheck?.remediation).toContain("mcpseal init");
     expect(report.allLocalOk).toBe(false);
   });
 
-  it("flags the proxy as not installed with a `mcplock install` remediation", async () => {
+  it("flags the proxy as not installed with a `mcpseal install` remediation", async () => {
     const dir = tmpProject();
     writeFileSync(path.join(dir, ".mcp.json"), JSON.stringify({ mcpServers: {} }));
     const report = await runDoctor(dir, isolatedOpts(dir));
     const proxyCheck = report.checks.find((c) => c.name === "Proxy installed");
     expect(proxyCheck?.ok).toBe(false);
-    expect(proxyCheck?.remediation).toContain("mcplock install");
+    expect(proxyCheck?.remediation).toContain("mcpseal install");
   });
 
   it("Control Plane category never counts toward allLocalOk — an unreachable server does not degrade local health", async () => {
     const dir = tmpProject();
     writeFileSync(path.join(dir, ".mcp.json"), JSON.stringify({ mcpServers: { stub: { command: "node", args: [stubServerPath] } } }));
     await init({ projectDir: dir });
-    writeFileSync(path.join(dir, ".mcp.json.mcplock-backup"), "{}");
+    writeFileSync(path.join(dir, ".mcp.json.mcpseal-backup"), "{}");
     writeConfig({ workspaceId: "w1", machineId: "m1", ingestUrl: "http://127.0.0.1:1" }, path.join(dir, "config.json"));
 
     const failingFetch = (async () => {
@@ -98,7 +98,7 @@ describe("formatDoctorReport", () => {
     const dir = tmpProject();
     const report = await runDoctor(dir, isolatedOpts(dir));
     const text = formatDoctorReport(report);
-    expect(text).toContain("MCPLOCK DOCTOR");
+    expect(text).toContain("MCPSEAL DOCTOR");
     expect(text).toMatch(/⚠|✔/);
   });
 
@@ -109,7 +109,7 @@ describe("formatDoctorReport", () => {
 
     writeFileSync(path.join(dir, ".mcp.json"), JSON.stringify({ mcpServers: { stub: { command: "node", args: [stubServerPath] } } }));
     await init({ projectDir: dir });
-    writeFileSync(path.join(dir, ".mcp.json.mcplock-backup"), "{}");
+    writeFileSync(path.join(dir, ".mcp.json.mcpseal-backup"), "{}");
     const goodReport = await runDoctor(dir, isolatedOpts(dir));
     expect(formatDoctorReport(goodReport)).toContain("healthy");
   }, 15_000);

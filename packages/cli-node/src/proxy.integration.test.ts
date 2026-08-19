@@ -2,7 +2,7 @@
 // through an actual runProxy(), feeding it real newline-delimited JSON-RPC
 // over in-memory streams playing the client's role. This is the same
 // protocol surface Claude Code would exercise by launching
-// `mcplock proxy <original command>` (build-bible.md Part 3.3) — no piece
+// `mcpseal proxy <original command>` (build-bible.md Part 3.3) — no piece
 // of the pipe is mocked, only the "client" driving it is a test harness
 // instead of a literal Claude Code process (not practical to script
 // end-to-end in this environment; see Tasks.md 2.2 verification notes).
@@ -10,8 +10,8 @@ import { describe, expect, it, afterEach } from "vitest";
 import { PassThrough } from "node:stream";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { hashTool } from "@mcplock/cli-core";
-import type { Lockfile } from "@mcplock/shared-types";
+import { hashTool } from "@mcpseal/cli-core";
+import type { Lockfile } from "@mcpseal/shared-types";
 import { runProxy, type ProxyHandle } from "./proxy.js";
 import type { McpToolDefinition } from "./mcp-client.js";
 
@@ -35,7 +35,7 @@ function lockfile(): Lockfile {
   return {
     version: 1,
     generatedAt: "2026-08-17T00:00:00Z",
-    generatedBy: "mcplock@test",
+    generatedBy: "mcpseal@test",
     servers: {
       stub: {
         transport: "stdio",
@@ -164,7 +164,7 @@ describe("runProxy — real child process, real stdio piping (Part 3.3)", () => 
   // Track A finding: the client disconnecting (its stdin/stdout pipe
   // closing — e.g. the real MCP client process exiting) must propagate to
   // the spawned child, or the child leaks as an orphan and `handle.closed`
-  // never resolves, hanging the whole `mcplock proxy` process forever.
+  // never resolves, hanging the whole `mcpseal proxy` process forever.
   // This is process-lifecycle plumbing, not the trust/filtering logic —
   // fixed in runProxy() by closing child.stdin when `input` ends.
   it("ending the client's input stream (disconnect) causes the child to exit and handle.closed to resolve", async () => {

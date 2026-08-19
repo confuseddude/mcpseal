@@ -158,7 +158,7 @@ export function openDb(filePath: string): Database.Database {
       hostname_hash TEXT,
       first_seen TEXT NOT NULL,
       last_seen TEXT NOT NULL,
-      mcplock_version TEXT
+      mcpseal_version TEXT
     );
 
     CREATE TABLE IF NOT EXISTS api_keys (
@@ -398,7 +398,7 @@ export function listMachinesForWorkspaces(db: Database.Database, workspaceIds: s
     hostname_hash: string | null;
     first_seen: string;
     last_seen: string;
-    mcplock_version: string | null;
+    mcpseal_version: string | null;
   }>;
 }
 

@@ -1,5 +1,5 @@
 # Mirrors packages/cli-node/src/manage.ts. build-bible.md Part 3.2,
-# Tasks.md 2.6: `mcplock approve <tool>` / `mcplock deny <tool>`. Both
+# Tasks.md 2.6: `mcpseal approve <tool>` / `mcpseal deny <tool>`. Both
 # re-fetch the tool's CURRENT live definition and write hash + description
 # into the lockfile with the new status (Tasks.md Change Log design note —
 # uniformly covers quarantined/unknown/drifted without separate code paths).
@@ -9,11 +9,11 @@ import os
 from datetime import datetime, timezone
 from typing import TypedDict
 
-from mcplock.command_hash import hash_command
-from mcplock.config_discovery import discover_servers_from_claude_code_project_config
-from mcplock.hash import hash_tool
-from mcplock.lockfile import read_lockfile, write_lockfile
-from mcplock.mcp_client import McpStdioClient
+from mcpseal.command_hash import hash_command
+from mcpseal.config_discovery import discover_servers_from_claude_code_project_config
+from mcpseal.hash import hash_tool
+from mcpseal.lockfile import read_lockfile, write_lockfile
+from mcpseal.mcp_client import McpStdioClient
 
 
 class SetToolStatusResult(TypedDict):

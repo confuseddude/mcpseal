@@ -9,6 +9,6 @@ export default defineConfig({
   schema: "./src/schema.ts",
   out: "./migrations",
   dbCredentials: {
-    url: process.env.DATABASE_URL ?? "postgres://mcplock:mcplock@localhost:5433/mcplock",
+    url: process.env.DATABASE_URL ?? "postgres://mcpseal:mcpseal@localhost:5433/mcpseal",
   },
 });

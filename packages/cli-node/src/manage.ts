@@ -1,13 +1,13 @@
-// build-bible.md Part 3.2, Tasks.md 2.6: `mcplock approve <tool>` /
-// `mcplock deny <tool>`. Design (Tasks.md Change Log): both re-fetch the
+// build-bible.md Part 3.2, Tasks.md 2.6: `mcpseal approve <tool>` /
+// `mcpseal deny <tool>`. Design (Tasks.md Change Log): both re-fetch the
 // tool's CURRENT live definition from the server and write that hash +
 // description into the lockfile with the new status — "approve" and "deny"
 // both mean "trust/distrust exactly what the server reports right now,"
 // which uniformly covers the quarantined/unknown/drifted cases Part 3.2
 // describes without needing separate code paths for each.
 import path from "node:path";
-import { readLockfile, writeLockfile, hashTool, type McpTool } from "@mcplock/cli-core";
-import type { ToolStatus } from "@mcplock/shared-types";
+import { readLockfile, writeLockfile, hashTool, type McpTool } from "@mcpseal/cli-core";
+import type { ToolStatus } from "@mcpseal/shared-types";
 import { discoverServersFromClaudeCodeProjectConfig } from "./config-discovery.js";
 import { McpStdioClient } from "./mcp-client.js";
 import { hashCommand } from "./command-hash.js";

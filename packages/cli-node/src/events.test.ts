@@ -5,7 +5,7 @@
 // of the codebase already throws (not invented ones), and that the
 // fallback path never crashes on an unrecognized error.
 import { describe, it, expect } from "vitest";
-import type { DriftReason } from "@mcplock/cli-core";
+import type { DriftReason } from "@mcpseal/cli-core";
 import type { PolicySyncResult } from "./policy-sync.js";
 import { describeDriftReason, describePolicyOutcome, classifyThrown, formatEventBlock } from "./events.js";
 
@@ -100,7 +100,7 @@ describe("classifyThrown — routes real thrown message strings from the actual 
   it("readLockfile's missing-file message", () => {
     const c = classifyThrown(new Error('readLockfile: could not read /x/.mcp-lock.json: ENOENT'));
     expect(c.code).toBe("LOCKFILE_NOT_FOUND");
-    expect(c.remediation).toContain("mcplock init   # discovers your MCP servers and creates a lockfile");
+    expect(c.remediation).toContain("mcpseal init   # discovers your MCP servers and creates a lockfile");
   });
 
   it("readLockfile's invalid-JSON message", () => {
@@ -130,12 +130,12 @@ describe("classifyThrown — routes real thrown message strings from the actual 
   });
 
   it("install's already-installed message", () => {
-    const c = classifyThrown(new Error("install: /x/.mcp.json.mcplock-backup already exists — mcplock appears to already be installed here"));
+    const c = classifyThrown(new Error("install: /x/.mcp.json.mcpseal-backup already exists — mcpseal appears to already be installed here"));
     expect(c.code).toBe("ALREADY_INSTALLED");
   });
 
   it("uninstall's no-backup message", () => {
-    const c = classifyThrown(new Error("uninstall: no backup found at /x/.mcp.json.mcplock-backup — mcplock does not appear to be installed here"));
+    const c = classifyThrown(new Error("uninstall: no backup found at /x/.mcp.json.mcpseal-backup — mcpseal does not appear to be installed here"));
     expect(c.code).toBe("NOT_INSTALLED");
   });
 
@@ -167,7 +167,7 @@ describe("classifyThrown — routes real thrown message strings from the actual 
   it("login's re-pin-refused message is critical and requires approval", () => {
     const c = classifyThrown(
       new Error(
-        "refusing to overwrite a previously pinned org signing key with a different one — run `mcplock logout` first if this is intentional"
+        "refusing to overwrite a previously pinned org signing key with a different one — run `mcpseal logout` first if this is intentional"
       )
     );
     expect(c.code).toBe("AUTH_KEY_REPIN_REFUSED");

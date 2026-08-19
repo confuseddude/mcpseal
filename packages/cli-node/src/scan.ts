@@ -1,7 +1,7 @@
-// build-bible.md Part 3.2, Tasks.md 2.6: `mcplock scan` — one-shot re-hash
+// build-bible.md Part 3.2, Tasks.md 2.6: `mcpseal scan` — one-shot re-hash
 // of all currently configured tools against the lockfile, CI-friendly
 // (non-zero exit on any drift/block).
-import { readLockfile, checkDrift, type DriftResult } from "@mcplock/cli-core";
+import { readLockfile, checkDrift, type DriftResult } from "@mcpseal/cli-core";
 import { discoverServersFromClaudeCodeProjectConfig } from "./config-discovery.js";
 import { McpStdioClient } from "./mcp-client.js";
 import path from "node:path";

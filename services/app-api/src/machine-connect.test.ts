@@ -16,9 +16,9 @@ import { buildApp } from "./app.js";
 
 function extractCookie(setCookieHeader: string | string[] | undefined): string {
   const header = Array.isArray(setCookieHeader) ? setCookieHeader[0] : setCookieHeader;
-  const match = header?.match(/mcplock_session=([^;]+)/);
+  const match = header?.match(/mcpseal_session=([^;]+)/);
   if (!match) throw new Error("no session cookie in response");
-  return `mcplock_session=${match[1]}`;
+  return `mcpseal_session=${match[1]}`;
 }
 
 async function loginAs(app: FastifyInstance, email: string): Promise<{ cookie: string; userId: string; orgId: string; role: string }> {
@@ -34,7 +34,7 @@ describe("POST /v1/machines/connect", () => {
   let app: FastifyInstance;
 
   beforeEach(() => {
-    dir = mkdtempSync(path.join(tmpdir(), "mcplock-connect-test-"));
+    dir = mkdtempSync(path.join(tmpdir(), "mcpseal-connect-test-"));
     dbPath = path.join(dir, "shared.sqlite3");
     app = buildApp(dbPath); // creates device_codes (IF NOT EXISTS) in the shared file
   });

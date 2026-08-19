@@ -28,7 +28,7 @@ export const machines = pgTable("machines", {
   hostnameHash: text("hostname_hash"),
   firstSeen: timestamp("first_seen", { withTimezone: true }).notNull(),
   lastSeen: timestamp("last_seen", { withTimezone: true }).notNull(),
-  mcplockVersion: text("mcplock_version"),
+  mcpsealVersion: text("mcpseal_version"),
 });
 
 export const apiKeys = pgTable("api_keys", {

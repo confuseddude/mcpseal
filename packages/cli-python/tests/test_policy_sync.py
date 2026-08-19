@@ -9,9 +9,9 @@ import uuid
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from mcplock.config import write_config
-from mcplock.http_client import HttpResponse
-from mcplock.policy_sync import pull_and_apply_policy
+from mcpseal.config import write_config
+from mcpseal.http_client import HttpResponse
+from mcpseal.policy_sync import pull_and_apply_policy
 
 
 class OrgKeypair:

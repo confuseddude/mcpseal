@@ -16,7 +16,7 @@ from cryptography.hazmat.primitives.serialization import (
     PublicFormat,
 )
 
-from mcplock.keychain import get_secret, set_secret
+from mcpseal.keychain import get_secret, set_secret
 
 PRIVATE_KEY_ACCOUNT = "machine-private-key"
 

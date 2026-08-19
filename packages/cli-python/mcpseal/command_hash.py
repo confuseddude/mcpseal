@@ -5,7 +5,7 @@
 # canonicalization machinery as tool hashing for consistency.
 import hashlib
 
-from mcplock.canonical_json import canonicalize
+from mcpseal.canonical_json import canonicalize
 
 
 def hash_command(command: str, args: list[str]) -> str:

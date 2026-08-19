@@ -1,7 +1,7 @@
 # Mirrors packages/cli-node/src/install.ts. build-bible.md Part 3.3,
-# Tasks.md 2.4: `mcplock install` rewrites each server entry in the client
-# config so the client launches `mcplock proxy <serverName> <original
-# command...>` instead of the original command directly. `mcplock
+# Tasks.md 2.4: `mcpseal install` rewrites each server entry in the client
+# config so the client launches `mcpseal proxy <serverName> <original
+# command...>` instead of the original command directly. `mcpseal
 # uninstall` reverses it exactly.
 #
 # Byte-for-byte guarantee: rather than regenerating JSON and hoping it
@@ -14,10 +14,10 @@ import json
 import os
 from typing import TypedDict
 
-BACKUP_SUFFIX = ".mcplock-backup"
+BACKUP_SUFFIX = ".mcpseal-backup"
 
-# Default matches Part 3.1's zero-install distribution model ("uvx mcplock").
-DEFAULT_MCPLOCK_INVOCATION: dict = {"command": "uvx", "args": ["mcplock"]}
+# Default matches Part 3.1's zero-install distribution model ("uvx mcpseal").
+DEFAULT_MCPSEAL_INVOCATION: dict = {"command": "uvx", "args": ["mcpseal"]}
 
 
 class InstallResult(TypedDict):
@@ -30,15 +30,15 @@ class UninstallResult(TypedDict):
     configPath: str
 
 
-def install(project_dir: str, mcplock_invocation: dict | None = None) -> InstallResult:
-    invocation = mcplock_invocation or DEFAULT_MCPLOCK_INVOCATION
+def install(project_dir: str, mcpseal_invocation: dict | None = None) -> InstallResult:
+    invocation = mcpseal_invocation or DEFAULT_MCPSEAL_INVOCATION
     config_path = os.path.join(project_dir, ".mcp.json")
     backup_path = config_path + BACKUP_SUFFIX
 
     if not os.path.exists(config_path):
         raise ValueError(f"install: no config found at {config_path}")
     if os.path.exists(backup_path):
-        raise ValueError(f"install: {backup_path} already exists — mcplock appears to already be installed here")
+        raise ValueError(f"install: {backup_path} already exists — mcpseal appears to already be installed here")
 
     with open(config_path, "r", encoding="utf-8") as f:
         original_bytes = f.read()
@@ -77,7 +77,7 @@ def uninstall(project_dir: str) -> UninstallResult:
     backup_path = config_path + BACKUP_SUFFIX
 
     if not os.path.exists(backup_path):
-        raise ValueError(f"uninstall: no backup found at {backup_path} — mcplock does not appear to be installed here")
+        raise ValueError(f"uninstall: no backup found at {backup_path} — mcpseal does not appear to be installed here")
 
     with open(backup_path, "r", encoding="utf-8") as f:
         original_bytes = f.read()

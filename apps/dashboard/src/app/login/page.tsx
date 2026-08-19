@@ -28,7 +28,7 @@ export default function LoginPage() {
     <div className="flex h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <div className="font-data text-lg text-[var(--color-text)]">mcplock</div>
+          <div className="font-data text-lg text-[var(--color-text)]">mcpseal</div>
           <p className="mt-1 text-sm text-[var(--color-text-dim)]">Sign in to your workspace</p>
         </div>
         <form onSubmit={onSubmit} className="flex flex-col gap-3">

@@ -1,5 +1,5 @@
 {
-  "id": "1188806b-1859-4a6c-9201-2dbf1afac1d2",
+  "id": "3c716022-6972-4e1a-8236-d8d2b8a95857",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -285,8 +285,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "mcplock_version": {
-          "name": "mcplock_version",
+        "mcpseal_version": {
+          "name": "mcpseal_version",
           "type": "text",
           "primaryKey": false,
           "notNull": false

@@ -6,7 +6,7 @@ import { createEmptyLockfile, readLockfile, writeLockfile } from "./lockfile.js"
 
 const dirs: string[] = [];
 function tmpDir(): string {
-  const d = mkdtempSync(path.join(tmpdir(), "mcplock-lockfile-test-"));
+  const d = mkdtempSync(path.join(tmpdir(), "mcpseal-lockfile-test-"));
   dirs.push(d);
   return d;
 }
@@ -32,7 +32,7 @@ describe("writeLockfile / readLockfile round-trip", () => {
   it("round-trips exactly", () => {
     const dir = tmpDir();
     const file = path.join(dir, ".mcp-lock.json");
-    const original = createEmptyLockfile("mcplock@test");
+    const original = createEmptyLockfile("mcpseal@test");
     original.servers.github = {
       transport: "stdio",
       command: "npx",

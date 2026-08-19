@@ -1,5 +1,5 @@
 # Mirrors packages/cli-node/src/proxy.ts. build-bible.md Part 3.3:
-# `mcplock proxy` — the transparent stdio wrapper. Sits between the real
+# `mcpseal proxy` — the transparent stdio wrapper. Sits between the real
 # MCP client (this process's stdin/stdout) and the real MCP server (a
 # spawned child process), passing ordinary traffic through byte-for-byte,
 # intercepting only responses that carry tool definitions.
@@ -7,7 +7,7 @@
 # Fail-closed contract (CLAUDE.md invariant 1, Part 13): any error while
 # intercepting a tools-bearing response must result in stripping the tools
 # from that response, never forwarding them unfiltered. check_drift() never
-# raises (mcplock.drift); this file's own try/except exists for errors in
+# raises (mcpseal.drift); this file's own try/except exists for errors in
 # the interception plumbing around it (e.g. an unexpected response shape).
 from __future__ import annotations
 
@@ -16,9 +16,9 @@ import subprocess
 import threading
 from typing import Any, Callable, TextIO, TypedDict
 
-from mcplock.drift import DriftResult, check_drift
-from mcplock.lockfile_schema import Lockfile
-from mcplock.process_utils import kill_process_tree
+from mcpseal.drift import DriftResult, check_drift
+from mcpseal.lockfile_schema import Lockfile
+from mcpseal.process_utils import kill_process_tree
 
 
 class ToolDecision(TypedDict):

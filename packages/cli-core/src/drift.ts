@@ -5,7 +5,7 @@
 // server entry, etc.) is caught and converted into a `block` decision — a
 // thrown exception could be caught-and-ignored by a careless caller upstream
 // and silently fail open, which is the one thing this product must never do.
-import type { Lockfile } from "@mcplock/shared-types";
+import type { Lockfile } from "@mcpseal/shared-types";
 import { hashTool, type McpTool } from "./hash.js";
 
 export type DriftReason =

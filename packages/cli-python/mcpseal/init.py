@@ -1,5 +1,5 @@
 # Mirrors packages/cli-node/src/init.ts. build-bible.md Part 3.2 / Tasks.md
-# 2.1: `mcplock init` discovers MCP servers, launches each once, hashes
+# 2.1: `mcpseal init` discovers MCP servers, launches each once, hashes
 # every tool, writes .mcp-lock.json with everything at status:approved
 # (trust-on-first-use, matching Part 2.3's example).
 from __future__ import annotations
@@ -7,12 +7,12 @@ from __future__ import annotations
 import os
 from datetime import datetime, timezone
 
-from mcplock.command_hash import hash_command
-from mcplock.config_discovery import DiscoveredServer, discover_servers_from_claude_code_project_config
-from mcplock.hash import hash_tool
-from mcplock.lockfile import create_empty_lockfile, write_lockfile
-from mcplock.lockfile_schema import Lockfile, ServerEntry
-from mcplock.mcp_client import McpStdioClient
+from mcpseal.command_hash import hash_command
+from mcpseal.config_discovery import DiscoveredServer, discover_servers_from_claude_code_project_config
+from mcpseal.hash import hash_tool
+from mcpseal.lockfile import create_empty_lockfile, write_lockfile
+from mcpseal.lockfile_schema import Lockfile, ServerEntry
+from mcpseal.mcp_client import McpStdioClient
 
 
 def _hash_one_server(server: DiscoveredServer, project_dir: str) -> ServerEntry:

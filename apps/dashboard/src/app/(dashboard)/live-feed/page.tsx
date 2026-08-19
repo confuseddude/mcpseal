@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api, type McplockEventRow } from "@/lib/api";
+import { api, type McpsealEventRow } from "@/lib/api";
 import { SeverityChip } from "@/components/SeverityChip";
 import { DescriptionDiff } from "@/components/DescriptionDiff";
 import { describeEventType } from "@/lib/event-taxonomy";
@@ -9,7 +9,7 @@ import { describeEventType } from "@/lib/event-taxonomy";
 const POLL_INTERVAL_MS = 4000;
 
 export default function LiveFeedPage() {
-  const [events, setEvents] = useState<McplockEventRow[] | null>(null);
+  const [events, setEvents] = useState<McpsealEventRow[] | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
 
   useEffect(() => {
@@ -94,7 +94,7 @@ export default function LiveFeedPage() {
   );
 }
 
-function EventExplanation({ event }: { event: McplockEventRow }) {
+function EventExplanation({ event }: { event: McpsealEventRow }) {
   const desc = describeEventType(event.type);
   return (
     <div className="rounded-md border border-[var(--color-border)] bg-[var(--color-bg)] p-3">
@@ -120,7 +120,7 @@ function EmptyState() {
     <div className="rounded-lg border border-dashed border-[var(--color-border)] px-6 py-16 text-center">
       <p className="text-sm text-[var(--color-text-dim)]">No blocked events yet from this workspace.</p>
       <p className="mt-1 font-data text-xs text-[var(--color-text-faint)]">
-        Run <span className="text-[var(--color-text)]">mcplock login</span> on a protected machine to start shipping
+        Run <span className="text-[var(--color-text)]">mcpseal login</span> on a protected machine to start shipping
         blocks here.
       </p>
     </div>

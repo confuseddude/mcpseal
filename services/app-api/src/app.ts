@@ -59,7 +59,7 @@ import { verifyAuditChain, eventsToCsv } from "./audit.js";
 // pointless. Team's 30 days matches the spec text exactly.
 const RETENTION_DAYS_BY_PLAN: Record<Plan, number | null> = { free: 7, team: 30, enterprise: null };
 
-const SESSION_COOKIE = "mcplock_session";
+const SESSION_COOKIE = "mcpseal_session";
 
 const emailSchema = z.object({ email: z.string().email() });
 
@@ -91,7 +91,7 @@ export function buildApp(dbPath: string): FastifyInstance {
   // allowlist must be explicit and credentials must be enabled — a
   // wildcard origin with credentials is rejected by browsers anyway, but
   // being explicit here also keeps other origins from reading responses.
-  const dashboardOrigins = (process.env.MCPLOCK_DASHBOARD_ORIGINS ?? "http://localhost:3000,http://127.0.0.1:3000")
+  const dashboardOrigins = (process.env.MCPSEAL_DASHBOARD_ORIGINS ?? "http://localhost:3000,http://127.0.0.1:3000")
     .split(",")
     .map((o) => o.trim())
     .filter(Boolean);
@@ -550,7 +550,7 @@ export function buildApp(dbPath: string): FastifyInstance {
 
   app.get("/healthz", async () => ({ ok: true }));
 
-  app.decorate("mcplockDb", db);
+  app.decorate("mcpsealDb", db);
   return app;
 }
 

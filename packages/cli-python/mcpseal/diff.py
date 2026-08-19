@@ -1,5 +1,5 @@
 # Mirrors packages/cli-node/src/diff.ts. build-bible.md Part 3.2, Tasks.md
-# 2.6: `mcplock diff` — human-readable old-vs-new for any drifted tool.
+# 2.6: `mcpseal diff` — human-readable old-vs-new for any drifted tool.
 # Only descriptions can be text-diffed (the lockfile stores description,
 # not the full tool object — Tasks.md 2.3 Change Log). When the hash
 # differs but the description text is identical, the change must be in
@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import TypedDict
 
-from mcplock.scan import ScanDecision, scan
+from mcpseal.scan import ScanDecision, scan
 
 
 class DriftDiff(TypedDict):

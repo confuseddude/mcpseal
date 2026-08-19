@@ -3,13 +3,13 @@ import uuid
 
 import pytest
 
-from mcplock.config import write_config
-from mcplock.event_log import append_event
-from mcplock.http_client import HttpResponse
-from mcplock.keychain import delete_secret, set_secret
-from mcplock.login import API_KEY_ACCOUNT
-from mcplock.machine_identity import PRIVATE_KEY_ACCOUNT, load_or_create_machine_identity
-from mcplock.ship_events import ship_events
+from mcpseal.config import write_config
+from mcpseal.event_log import append_event
+from mcpseal.http_client import HttpResponse
+from mcpseal.keychain import delete_secret, set_secret
+from mcpseal.login import API_KEY_ACCOUNT
+from mcpseal.machine_identity import PRIVATE_KEY_ACCOUNT, load_or_create_machine_identity
+from mcpseal.ship_events import ship_events
 
 
 class NetworkCallNotAllowed(Exception):
@@ -71,7 +71,7 @@ def test_ships_unshipped_events_signs_batch_advances_cursor(tmp_path):
     assert result.shipped == 2
     assert result.duplicates == 0
     assert captured["headers"]["authorization"] == "Bearer keyid.secret"
-    assert captured["headers"]["x-mcplock-signature"]
+    assert captured["headers"]["x-mcpseal-signature"]
     body = json.loads(captured["body"])
     assert body["workspaceId"] == workspace_id
     assert body["machineId"] == machine_id

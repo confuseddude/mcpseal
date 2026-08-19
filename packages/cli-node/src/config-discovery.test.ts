@@ -6,7 +6,7 @@ import { discoverServersFromClaudeCodeProjectConfig } from "./config-discovery.j
 
 const dirs: string[] = [];
 function tmpDir(): string {
-  const d = mkdtempSync(path.join(tmpdir(), "mcplock-config-test-"));
+  const d = mkdtempSync(path.join(tmpdir(), "mcpseal-config-test-"));
   dirs.push(d);
   return d;
 }

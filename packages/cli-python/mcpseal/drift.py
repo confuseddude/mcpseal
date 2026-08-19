@@ -8,8 +8,8 @@
 # never do.
 from typing import Optional, TypedDict
 
-from mcplock.hash import hash_tool
-from mcplock.lockfile_schema import Lockfile
+from mcpseal.hash import hash_tool
+from mcpseal.lockfile_schema import Lockfile
 
 
 class DriftResult(TypedDict, total=False):

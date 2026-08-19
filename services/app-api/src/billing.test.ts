@@ -6,9 +6,9 @@ import { MockBillingProvider } from "./billing.js";
 
 function extractCookie(setCookieHeader: string | string[] | undefined): string {
   const header = Array.isArray(setCookieHeader) ? setCookieHeader[0] : setCookieHeader;
-  const match = header?.match(/mcplock_session=([^;]+)/);
+  const match = header?.match(/mcpseal_session=([^;]+)/);
   if (!match) throw new Error("no session cookie in response");
-  return `mcplock_session=${match[1]}`;
+  return `mcpseal_session=${match[1]}`;
 }
 
 async function loginAs(app: FastifyInstance, email: string) {

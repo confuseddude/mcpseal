@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { setSecret, getSecret, deleteSecret } from "./keychain.js";
 
-const TEST_ACCOUNT = "test-account-mcplock-vitest";
+const TEST_ACCOUNT = "test-account-mcpseal-vitest";
 
 describe("keychain", () => {
   afterEach(() => {
@@ -14,7 +14,7 @@ describe("keychain", () => {
   });
 
   it("returns null for a secret that was never set", () => {
-    expect(getSecret("account-that-does-not-exist-mcplock-vitest")).toBeNull();
+    expect(getSecret("account-that-does-not-exist-mcpseal-vitest")).toBeNull();
   });
 
   it("delete is idempotent and getSecret returns null after delete", () => {

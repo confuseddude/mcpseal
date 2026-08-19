@@ -1,7 +1,7 @@
 [project]
-name = "mcplock"
+name = "mcpseal"
 version = "0.1.0"
-description = "mcplock CLI (Python) - MCP tool-integrity verifier"
+description = "mcpseal CLI (Python) - MCP tool-integrity verifier"
 requires-python = ">=3.10"
 dependencies = [
     "canonicaljson>=2.0.0",
@@ -21,7 +21,7 @@ dependencies = [
 dev = ["pytest>=8.0.0"]
 
 [project.scripts]
-mcplock = "mcplock.cli:entrypoint"
+mcpseal = "mcpseal.cli:entrypoint"
 
 [build-system]
 requires = ["hatchling"]

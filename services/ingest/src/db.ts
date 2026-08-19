@@ -30,7 +30,7 @@ export interface Machine {
   hostnameHash: string | null;
   firstSeen: string;
   lastSeen: string;
-  mcplockVersion: string | null;
+  mcpsealVersion: string | null;
 }
 
 export interface ApiKeyRecord {
@@ -85,7 +85,7 @@ export function openDb(filePath: string): Database.Database {
       hostname_hash TEXT,
       first_seen TEXT NOT NULL,
       last_seen TEXT NOT NULL,
-      mcplock_version TEXT
+      mcpseal_version TEXT
     );
 
     CREATE TABLE IF NOT EXISTS api_keys (
@@ -214,25 +214,25 @@ export function touchApiKeyLastUsed(db: Database.Database, keyId: string): void 
 
 export function upsertMachine(db: Database.Database, m: Omit<Machine, "id" | "firstSeen" | "lastSeen"> & { firstSeen?: string }): Machine {
   const existing = db.prepare("SELECT * FROM machines WHERE machine_id = ?").get(m.machineId) as
-    | { id: string; workspace_id: string; machine_id: string; public_key: string; hostname_hash: string | null; first_seen: string; last_seen: string; mcplock_version: string | null }
+    | { id: string; workspace_id: string; machine_id: string; public_key: string; hostname_hash: string | null; first_seen: string; last_seen: string; mcpseal_version: string | null }
     | undefined;
   const now = new Date().toISOString();
   if (existing) {
-    db.prepare("UPDATE machines SET public_key = ?, last_seen = ?, mcplock_version = ? WHERE machine_id = ?").run(
+    db.prepare("UPDATE machines SET public_key = ?, last_seen = ?, mcpseal_version = ? WHERE machine_id = ?").run(
       m.publicKey,
       now,
-      m.mcplockVersion,
+      m.mcpsealVersion,
       m.machineId
     );
-    return { ...existing, publicKey: m.publicKey, lastSeen: now, mcplockVersion: m.mcplockVersion, id: existing.id, workspaceId: existing.workspace_id, machineId: existing.machine_id, hostnameHash: existing.hostname_hash, firstSeen: existing.first_seen };
+    return { ...existing, publicKey: m.publicKey, lastSeen: now, mcpsealVersion: m.mcpsealVersion, id: existing.id, workspaceId: existing.workspace_id, machineId: existing.machine_id, hostnameHash: existing.hostname_hash, firstSeen: existing.first_seen };
   }
   const id = randomUUID();
   const firstSeen = m.firstSeen ?? now;
   db.prepare(
-    `INSERT INTO machines (id, workspace_id, machine_id, public_key, hostname_hash, first_seen, last_seen, mcplock_version)
+    `INSERT INTO machines (id, workspace_id, machine_id, public_key, hostname_hash, first_seen, last_seen, mcpseal_version)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(id, m.workspaceId, m.machineId, m.publicKey, m.hostnameHash, firstSeen, now, m.mcplockVersion);
-  return { id, workspaceId: m.workspaceId, machineId: m.machineId, publicKey: m.publicKey, hostnameHash: m.hostnameHash, firstSeen, lastSeen: now, mcplockVersion: m.mcplockVersion };
+  ).run(id, m.workspaceId, m.machineId, m.publicKey, m.hostnameHash, firstSeen, now, m.mcpsealVersion);
+  return { id, workspaceId: m.workspaceId, machineId: m.machineId, publicKey: m.publicKey, hostnameHash: m.hostnameHash, firstSeen, lastSeen: now, mcpsealVersion: m.mcpsealVersion };
 }
 
 export function findOrgIdForWorkspace(db: Database.Database, workspaceId: string): string | undefined {
@@ -264,7 +264,7 @@ export function findLatestPolicyForOrg(db: Database.Database, orgId: string): Po
 
 export function findMachine(db: Database.Database, machineId: string): Machine | undefined {
   const row = db.prepare("SELECT * FROM machines WHERE machine_id = ?").get(machineId) as
-    | { id: string; workspace_id: string; machine_id: string; public_key: string; hostname_hash: string | null; first_seen: string; last_seen: string; mcplock_version: string | null }
+    | { id: string; workspace_id: string; machine_id: string; public_key: string; hostname_hash: string | null; first_seen: string; last_seen: string; mcpseal_version: string | null }
     | undefined;
   if (!row) return undefined;
   return {
@@ -275,7 +275,7 @@ export function findMachine(db: Database.Database, machineId: string): Machine |
     hostnameHash: row.hostname_hash,
     firstSeen: row.first_seen,
     lastSeen: row.last_seen,
-    mcplockVersion: row.mcplock_version,
+    mcpsealVersion: row.mcpseal_version,
   };
 }
 

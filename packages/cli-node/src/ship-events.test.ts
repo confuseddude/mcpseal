@@ -20,7 +20,7 @@ describe("shipEvents — CLAUDE.md invariant 2 (no network before login)", () =>
   });
 
   it("makes ZERO network calls when there is no config at all (never logged in)", async () => {
-    tmpDir = mkdtempSync(path.join(tmpdir(), "mcplock-ship-test-"));
+    tmpDir = mkdtempSync(path.join(tmpdir(), "mcpseal-ship-test-"));
     const cfgPath = path.join(tmpDir, "config.json"); // deliberately never written
     const logPath = path.join(tmpDir, "events.jsonl");
     appendEvent({ type: "blocked_drift", server: "s", tool: "t" }, logPath);
@@ -34,7 +34,7 @@ describe("shipEvents — CLAUDE.md invariant 2 (no network before login)", () =>
   });
 
   it("makes ZERO network calls when config exists but keychain has no credentials", async () => {
-    tmpDir = mkdtempSync(path.join(tmpdir(), "mcplock-ship-test-"));
+    tmpDir = mkdtempSync(path.join(tmpdir(), "mcpseal-ship-test-"));
     const cfgPath = path.join(tmpDir, "config.json");
     const logPath = path.join(tmpDir, "events.jsonl");
     writeConfig({ workspaceId: randomUUID(), machineId: randomUUID(), ingestUrl: "http://127.0.0.1:8787" }, cfgPath);
@@ -59,7 +59,7 @@ describe("shipEvents — opted-in shipping", () => {
   });
 
   it("ships unshipped events, signs the batch, and advances the cursor", async () => {
-    tmpDir = mkdtempSync(path.join(tmpdir(), "mcplock-ship-test-"));
+    tmpDir = mkdtempSync(path.join(tmpdir(), "mcpseal-ship-test-"));
     const cfgPath = path.join(tmpDir, "config.json");
     const logPath = path.join(tmpDir, "events.jsonl");
     const workspaceId = randomUUID();
@@ -87,14 +87,14 @@ describe("shipEvents — opted-in shipping", () => {
     const result = await shipEvents({ cfgPath, logPath, fetchImpl });
     expect(result).toEqual({ skipped: false, shipped: 2, duplicates: 0 });
     expect(capturedHeaders?.authorization).toBe("Bearer keyid.secret");
-    expect(capturedHeaders?.["x-mcplock-signature"]).toMatch(/^[0-9a-f]+$/);
+    expect(capturedHeaders?.["x-mcpseal-signature"]).toMatch(/^[0-9a-f]+$/);
     expect(JSON.parse(capturedBody!).workspaceId).toBe(workspaceId);
     expect(JSON.parse(capturedBody!).machineId).toBe(machineId);
     expect(JSON.parse(capturedBody!).batch).toHaveLength(2);
   });
 
   it("does not re-ship events already covered by the cursor", async () => {
-    tmpDir = mkdtempSync(path.join(tmpdir(), "mcplock-ship-test-"));
+    tmpDir = mkdtempSync(path.join(tmpdir(), "mcpseal-ship-test-"));
     const cfgPath = path.join(tmpDir, "config.json");
     const logPath = path.join(tmpDir, "events.jsonl");
     writeConfig({ workspaceId: randomUUID(), machineId: randomUUID(), ingestUrl: "http://127.0.0.1:8787" }, cfgPath);
@@ -119,7 +119,7 @@ describe("shipEvents — opted-in shipping", () => {
   });
 
   it("leaves the cursor unchanged on a network failure so the batch is retried later", async () => {
-    tmpDir = mkdtempSync(path.join(tmpdir(), "mcplock-ship-test-"));
+    tmpDir = mkdtempSync(path.join(tmpdir(), "mcpseal-ship-test-"));
     const cfgPath = path.join(tmpDir, "config.json");
     const logPath = path.join(tmpDir, "events.jsonl");
     writeConfig({ workspaceId: randomUUID(), machineId: randomUUID(), ingestUrl: "http://127.0.0.1:8787" }, cfgPath);

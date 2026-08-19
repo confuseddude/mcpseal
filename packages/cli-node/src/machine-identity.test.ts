@@ -26,7 +26,7 @@ describe("machine-identity", () => {
 
   it("produces a valid ed25519 signature verifiable against the public key", () => {
     const identity = loadOrCreateMachineIdentity();
-    const message = Buffer.from("hello mcplock", "utf-8");
+    const message = Buffer.from("hello mcpseal", "utf-8");
     const signatureHex = signWithMachineKey(identity.privateKeyHex, message);
     const sig = Buffer.from(signatureHex, "hex");
     const pub = Buffer.from(identity.publicKeyHex, "hex");
@@ -35,11 +35,11 @@ describe("machine-identity", () => {
 
   it("a signature does not verify against a tampered message", () => {
     const identity = loadOrCreateMachineIdentity();
-    const message = Buffer.from("hello mcplock", "utf-8");
+    const message = Buffer.from("hello mcpseal", "utf-8");
     const signatureHex = signWithMachineKey(identity.privateKeyHex, message);
     const sig = Buffer.from(signatureHex, "hex");
     const pub = Buffer.from(identity.publicKeyHex, "hex");
-    const tampered = Buffer.from("hello mcplock!", "utf-8");
+    const tampered = Buffer.from("hello mcpseal!", "utf-8");
     expect(ed25519.verify(sig, tampered, pub)).toBe(false);
   });
 });

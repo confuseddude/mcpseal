@@ -1,8 +1,8 @@
 // Real publishing blocker found via testing (Tasks.md 2.7 verification
-// notes): `pnpm pack` rewrites the workspace:^ deps on @mcplock/cli-core and
-// @mcplock/shared-types to plain semver ranges (e.g. ^0.1.0) — but those
+// notes): `pnpm pack` rewrites the workspace:^ deps on @mcpseal/cli-core and
+// @mcpseal/shared-types to plain semver ranges (e.g. ^0.1.0) — but those
 // packages are internal-only and were never published to npm, so a real
-// `npm install mcplock` from outside this monorepo would 404 resolving
+// `npm install mcpseal` from outside this monorepo would 404 resolving
 // them. Bundling the CLI entrypoint into a single self-contained file with
 // esbuild removes that runtime dependency entirely; node builtins stay
 // external automatically under platform:"node".

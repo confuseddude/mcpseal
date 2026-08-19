@@ -1,10 +1,10 @@
-// build-bible.md Part 3.2 / Tasks.md 2.1: `mcplock init` discovers MCP
+// build-bible.md Part 3.2 / Tasks.md 2.1: `mcpseal init` discovers MCP
 // servers from client configs, launches each once, hashes every tool, and
 // writes .mcp-lock.json with everything at status:approved
 // (trust-on-first-use, matching Part 2.3's example).
 import path from "node:path";
-import { createEmptyLockfile, hashTool, writeLockfile, type McpTool } from "@mcplock/cli-core";
-import type { Lockfile, ServerEntry, ToolEntry } from "@mcplock/shared-types";
+import { createEmptyLockfile, hashTool, writeLockfile, type McpTool } from "@mcpseal/cli-core";
+import type { Lockfile, ServerEntry, ToolEntry } from "@mcpseal/shared-types";
 import { discoverServersFromClaudeCodeProjectConfig, type DiscoveredServer } from "./config-discovery.js";
 import { McpStdioClient } from "./mcp-client.js";
 import { hashCommand } from "./command-hash.js";

@@ -1,5 +1,5 @@
 # Mirrors packages/cli-node/src/login.ts. build-bible.md Part 6.2:
-# `mcplock login` — device-authorization flow, ed25519 machine keypair,
+# `mcpseal login` — device-authorization flow, ed25519 machine keypair,
 # workspace API key in the OS keychain. This is the ONLY place in the free
 # CLI that ever makes a network call (CLAUDE.md invariant 2) — every other
 # command is fully local.
@@ -13,13 +13,13 @@ import uuid
 from dataclasses import dataclass
 from typing import Callable
 
-from mcplock.config import McplockConfig, config_path as default_config_path, read_config, write_config
-from mcplock.http_client import HttpRequestFn, request as default_request
-from mcplock.keychain import set_secret
-from mcplock.machine_identity import load_or_create_machine_identity
+from mcpseal.config import McpsealConfig, config_path as default_config_path, read_config, write_config
+from mcpseal.http_client import HttpRequestFn, request as default_request
+from mcpseal.keychain import set_secret
+from mcpseal.machine_identity import load_or_create_machine_identity
 
 API_KEY_ACCOUNT = "workspace-api-key"
-DEFAULT_INGEST_URL = os.environ.get("MCPLOCK_INGEST_URL", "http://127.0.0.1:8787")
+DEFAULT_INGEST_URL = os.environ.get("MCPSEAL_INGEST_URL", "http://127.0.0.1:8787")
 
 
 @dataclass
@@ -85,7 +85,7 @@ def login(
                     "workspaceId": poll["workspaceId"],
                     "machineId": machine_id,
                     "publicKey": identity.public_key_hex,
-                    "mcplockVersion": "0.1.0",
+                    "mcpsealVersion": "0.1.0",
                 }
             ),
         )
@@ -104,11 +104,11 @@ def login(
         if existing and existing.get("orgPublicKeyHex") and org_public_key and existing["orgPublicKeyHex"] != org_public_key:
             raise LoginError(
                 "refusing to overwrite a previously pinned org signing key with a different one — "
-                "run `mcplock logout` first if this is intentional"
+                "run `mcpseal logout` first if this is intentional"
             )
 
         set_secret(API_KEY_ACCOUNT, poll["apiKeyToken"])
-        config: McplockConfig = {
+        config: McpsealConfig = {
             "workspaceId": poll["workspaceId"],
             "machineId": machine_id,
             "ingestUrl": resolved_ingest_url,

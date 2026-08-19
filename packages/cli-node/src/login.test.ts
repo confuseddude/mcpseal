@@ -33,7 +33,7 @@ describe("login", () => {
   });
 
   it("completes the device flow, stores the API key in the keychain, and writes config", async () => {
-    tmpDir = mkdtempSync(path.join(tmpdir(), "mcplock-login-test-"));
+    tmpDir = mkdtempSync(path.join(tmpdir(), "mcpseal-login-test-"));
     const cfgPath = path.join(tmpDir, "config.json");
     const workspaceId = randomUUID();
     const apiKeyToken = "keyid123.secretvalue";
@@ -66,7 +66,7 @@ describe("login", () => {
   });
 
   it("polls through pending states before approval", async () => {
-    tmpDir = mkdtempSync(path.join(tmpdir(), "mcplock-login-test-"));
+    tmpDir = mkdtempSync(path.join(tmpdir(), "mcpseal-login-test-"));
     const cfgPath = path.join(tmpDir, "config.json");
     const workspaceId = randomUUID();
 
@@ -83,7 +83,7 @@ describe("login", () => {
   });
 
   it("throws if the device code is denied", async () => {
-    tmpDir = mkdtempSync(path.join(tmpdir(), "mcplock-login-test-"));
+    tmpDir = mkdtempSync(path.join(tmpdir(), "mcpseal-login-test-"));
     const cfgPath = path.join(tmpDir, "config.json");
     const fetchImpl = mockFetchSequence([
       { status: 200, body: { deviceCode: "dc-3", userCode: "DEN000", expiresIn: 60, interval: 0.01 } },
@@ -94,7 +94,7 @@ describe("login", () => {
   });
 
   it("throws if the device code expires", async () => {
-    tmpDir = mkdtempSync(path.join(tmpdir(), "mcplock-login-test-"));
+    tmpDir = mkdtempSync(path.join(tmpdir(), "mcpseal-login-test-"));
     const cfgPath = path.join(tmpDir, "config.json");
     const fetchImpl = mockFetchSequence([
       { status: 200, body: { deviceCode: "dc-4", userCode: "EXP000", expiresIn: 60, interval: 0.01 } },
@@ -104,7 +104,7 @@ describe("login", () => {
   });
 
   it("throws (does not silently succeed) if device/start returns a non-2xx", async () => {
-    tmpDir = mkdtempSync(path.join(tmpdir(), "mcplock-login-test-"));
+    tmpDir = mkdtempSync(path.join(tmpdir(), "mcpseal-login-test-"));
     const cfgPath = path.join(tmpDir, "config.json");
     const fetchImpl = mockFetchSequence([{ status: 500, body: {} }]);
     await expect(login({ fetchImpl, cfgPath, sleep: () => Promise.resolve() })).rejects.toThrow(/HTTP 500/);

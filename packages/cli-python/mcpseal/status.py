@@ -1,4 +1,4 @@
-# Mirrors packages/cli-node/src/status.ts. Track A: `mcplock status` — a
+# Mirrors packages/cli-node/src/status.ts. Track A: `mcpseal status` — a
 # structured, offline-first snapshot of local health, kept separate from
 # Control Plane connectivity (doctor.py does that probe; status never
 # makes a network call).
@@ -7,9 +7,9 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 
-from mcplock.config import read_config
-from mcplock.event_log import events_log_path, read_events, recent_blocks
-from mcplock.lockfile import read_lockfile
+from mcpseal.config import read_config
+from mcpseal.event_log import events_log_path, read_events, recent_blocks
+from mcpseal.lockfile import read_lockfile
 
 
 @dataclass
@@ -48,7 +48,7 @@ def build_status_report(
     resolved_project_dir = project_dir or os.getcwd()
     resolved_lockfile_path = lockfile_path or os.path.join(resolved_project_dir, ".mcp-lock.json")
 
-    local = LocalStatus(proxyInstalled=os.path.exists(os.path.join(resolved_project_dir, ".mcp.json.mcplock-backup")))
+    local = LocalStatus(proxyInstalled=os.path.exists(os.path.join(resolved_project_dir, ".mcp.json.mcpseal-backup")))
 
     try:
         lockfile = read_lockfile(resolved_lockfile_path)
@@ -83,10 +83,10 @@ def format_status_report(report: StatusReport) -> str:
     else:
         suffix = f" — {report.local.lockfileError}" if report.local.lockfileError else ""
         lines.append(f"  lockfile:  MISSING or invalid{suffix}")
-        lines.append("             next: mcplock init")
+        lines.append("             next: mcpseal init")
     lines.append(f"  proxy:     {'installed' if report.local.proxyInstalled else 'not installed — MCP servers launch unprotected'}")
     if not report.local.proxyInstalled:
-        lines.append("             next: mcplock install")
+        lines.append("             next: mcpseal install")
     lines.append(f"  events:    {report.local.eventCount} recorded, {report.local.blockCount} block(s) total")
     for b in report.local.recentBlocks:
         lines.append(f"    [{b['ts']}] {b['type']} — {b['server']}/{b['tool']}")
@@ -97,9 +97,9 @@ def format_status_report(report: StatusReport) -> str:
         lines.append(f"  workspace: {report.connection.workspaceId} (machine {report.connection.machineId})")
         if report.connection.lastAppliedPolicyVersion is not None:
             lines.append(f"  policy:    version {report.connection.lastAppliedPolicyVersion} last applied")
-        lines.append("  next:      mcplock doctor   # checks live connectivity")
+        lines.append("  next:      mcpseal doctor   # checks live connectivity")
     else:
         lines.append("  not logged in — running fully local, no workspace connection.")
-        lines.append("  next:      mcplock login   # optional; local enforcement already works without it")
+        lines.append("  next:      mcpseal login   # optional; local enforcement already works without it")
 
     return "\n".join(lines)

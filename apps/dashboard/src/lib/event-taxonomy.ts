@@ -1,5 +1,5 @@
 // Track A ("wedge completion"): the SAME event taxonomy the CLIs use
-// (packages/cli-node/src/events.ts, packages/cli-python/mcplock/events.py)
+// (packages/cli-node/src/events.ts, packages/cli-python/mcpseal/events.py)
 // — same codes, same severities, same underlying decision — mirrored here
 // for the dashboard. This is a THIRD independent copy of the same
 // taxonomy, not a shared runtime dependency, matching this repo's
@@ -31,49 +31,49 @@ const EVENT_TAXONOMY: Record<string, EventDescription> = {
     severity: "high",
     summary: "This tool's hash matches the lockfile, but it is explicitly denied.",
     consequence: "Blocked on the machine that reported this — the tool call never reached the client.",
-    cliRemediation: ["mcplock diff", "mcplock approve <server> <tool>"],
+    cliRemediation: ["mcpseal diff", "mcpseal approve <server> <tool>"],
   },
   blocked_quarantined: {
     code: "TOOL_QUARANTINED",
     severity: "high",
     summary: "This tool is quarantined pending explicit review.",
     consequence: "Blocked on the machine that reported this.",
-    cliRemediation: ["mcplock diff", "mcplock approve <server> <tool>", "mcplock deny <server> <tool>"],
+    cliRemediation: ["mcpseal diff", "mcpseal approve <server> <tool>", "mcpseal deny <server> <tool>"],
   },
   blocked_drift: {
     code: "TOOL_CHANGED",
     severity: "critical",
     summary: "The tool's definition changed since it was approved — a rug pull.",
     consequence: "Blocked on the machine that reported this — the tool call never reached the client.",
-    cliRemediation: ["mcplock diff", "mcplock approve <server> <tool>", "mcplock deny <server> <tool>"],
+    cliRemediation: ["mcpseal diff", "mcpseal approve <server> <tool>", "mcpseal deny <server> <tool>"],
   },
   blocked_unknown: {
     code: "TOOL_UNKNOWN",
     severity: "medium",
     summary: "This tool wasn't in the lockfile, and the policy blocks unknown tools.",
     consequence: "Blocked on the machine that reported this.",
-    cliRemediation: ["mcplock scan", "mcplock approve <server> <tool>"],
+    cliRemediation: ["mcpseal scan", "mcpseal approve <server> <tool>"],
   },
   allowed_unknown: {
     code: "TOOL_UNKNOWN_ALLOWED",
     severity: "medium",
     summary: "This tool wasn't in the lockfile, but the policy allows unknown tools through.",
     consequence: "Forwarded — consider tightening onUnknownTool if this is unexpected.",
-    cliRemediation: ["mcplock scan", "mcplock approve <server> <tool>"],
+    cliRemediation: ["mcpseal scan", "mcpseal approve <server> <tool>"],
   },
   tool_removed: {
     code: "TOOL_REMOVED",
     severity: "info",
     summary: "A previously-approved tool is no longer offered by the server.",
     consequence: "Informational only.",
-    cliRemediation: ["mcplock scan"],
+    cliRemediation: ["mcpseal scan"],
   },
   blocked_error: {
     code: "INTERNAL_CHECK_ERROR",
     severity: "critical",
     summary: "An internal error occurred while checking this tool.",
     consequence: "Blocked — fail-closed: an error in the trust check is never treated as a pass.",
-    cliRemediation: ["mcplock doctor"],
+    cliRemediation: ["mcpseal doctor"],
   },
 };
 

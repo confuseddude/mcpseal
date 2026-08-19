@@ -2,7 +2,7 @@
 # confirms every drift reason / policy outcome has a description and that
 # classify_thrown() routes the actual message strings the rest of the
 # codebase raises.
-from mcplock.events import classify_thrown, describe_drift_reason, describe_policy_outcome, format_event_block
+from mcpseal.events import classify_thrown, describe_drift_reason, describe_policy_outcome, format_event_block
 
 ALL_DRIFT_REASONS = [
     "approved",
@@ -69,7 +69,7 @@ def test_transient_rejections_are_retryable():
 def test_classify_thrown_routes_lockfile_not_found():
     c = classify_thrown(ValueError("read_lockfile: could not read /x/.mcp-lock.json: ENOENT"))
     assert c.code == "LOCKFILE_NOT_FOUND"
-    assert "mcplock init   # discovers your MCP servers and creates a lockfile" in c.remediation
+    assert "mcpseal init   # discovers your MCP servers and creates a lockfile" in c.remediation
 
 
 def test_classify_thrown_routes_lockfile_invalid():
@@ -89,12 +89,12 @@ def test_classify_thrown_routes_install_no_config():
 
 
 def test_classify_thrown_routes_install_already_exists():
-    c = classify_thrown(ValueError("install: /x/.mcp.json.mcplock-backup already exists — mcplock appears to already be installed here"))
+    c = classify_thrown(ValueError("install: /x/.mcp.json.mcpseal-backup already exists — mcpseal appears to already be installed here"))
     assert c.code == "ALREADY_INSTALLED"
 
 
 def test_classify_thrown_routes_uninstall_no_backup():
-    c = classify_thrown(ValueError("uninstall: no backup found at /x/.mcp.json.mcplock-backup — mcplock does not appear to be installed here"))
+    c = classify_thrown(ValueError("uninstall: no backup found at /x/.mcp.json.mcpseal-backup — mcpseal does not appear to be installed here"))
     assert c.code == "NOT_INSTALLED"
 
 
@@ -123,7 +123,7 @@ def test_classify_thrown_routes_login_expired():
 def test_classify_thrown_routes_repin_refused_as_critical():
     c = classify_thrown(
         Exception(
-            "refusing to overwrite a previously pinned org signing key with a different one — run `mcplock logout` first if this is intentional"
+            "refusing to overwrite a previously pinned org signing key with a different one — run `mcpseal logout` first if this is intentional"
         )
     )
     assert c.code == "AUTH_KEY_REPIN_REFUSED"

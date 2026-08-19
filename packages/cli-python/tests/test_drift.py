@@ -1,5 +1,5 @@
-from mcplock.drift import check_drift
-from mcplock.hash import hash_tool
+from mcpseal.drift import check_drift
+from mcpseal.hash import hash_tool
 
 TOOL = {
     "name": "create_issue",
@@ -21,7 +21,7 @@ def base_lockfile(tool_overrides=None):
     return {
         "version": 1,
         "generatedAt": "2026-08-17T00:00:00Z",
-        "generatedBy": "mcplock@test",
+        "generatedBy": "mcpseal@test",
         "servers": {
             "github": {
                 "transport": "stdio",

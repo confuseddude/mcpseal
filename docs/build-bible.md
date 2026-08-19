@@ -1,6 +1,6 @@
 # MCP Integrity Platform — The Build Bible
 
-*A single source of truth for building the product end-to-end with Claude Code. Codenames are placeholders: the CLI binary is `mcplock`, the lockfile is `.mcp-lock.json`, the SaaS backend is the **Control Plane**. Rename later; keep the architecture.*
+*A single source of truth for building the product end-to-end with Claude Code. Codenames are placeholders: the CLI binary is `mcpseal`, the lockfile is `.mcp-lock.json`, the SaaS backend is the **Control Plane**. Rename later; keep the architecture.*
 
 ---
 
@@ -24,7 +24,7 @@ Read Part 1 once to hold the whole system in your head. After that, each part is
 │        │  spawns server via config (command + args)               │
 │        ▼                                                           │
 │   ┌──────────────┐   stdio    ┌────────────────────┐              │
-│   │  mcplock     │◄──────────►│  Real MCP Server    │              │
+│   │  mcpseal     │◄──────────►│  Real MCP Server    │              │
 │   │  (stdio proxy│            │  (github, slack…)   │              │
 │   │   + verifier)│            └────────────────────┘              │
 │   └──────┬───────┘                                                │
@@ -53,7 +53,7 @@ Read Part 1 once to hold the whole system in your head. After that, each part is
 
 ### 1.2 The components and what each is responsible for
 
-The **`mcplock` CLI/proxy** is the whole free product and the wedge. It does three jobs: it generates the lockfile (`mcplock init`), it sits transparently in the stdio path between the MCP client and each real MCP server verifying that every tool's definition matches the pinned hash, and it blocks execution the instant a tool's description or schema drifts from what was approved. It requires no account, no network, and no infrastructure. This is the thing 10,000 developers install.
+The **`mcpseal` CLI/proxy** is the whole free product and the wedge. It does three jobs: it generates the lockfile (`mcpseal init`), it sits transparently in the stdio path between the MCP client and each real MCP server verifying that every tool's definition matches the pinned hash, and it blocks execution the instant a tool's description or schema drifts from what was approved. It requires no account, no network, and no infrastructure. This is the thing 10,000 developers install.
 
 The **lockfile (`.mcp-lock.json`)** is the system of record for "what did this developer approve." It is a plain JSON file committed to the repo (like `package-lock.json`). It contains a cryptographic hash of every tool's name, description, and input schema at the moment it was approved. Drift from these hashes is the entire detection mechanism.
 
@@ -71,7 +71,7 @@ The **PQL Engine** is a scheduled job that watches ingest telemetry for buying s
 
 ### 1.3 The data flow in one paragraph
 
-A developer runs `mcplock init` in their repo. It launches each configured MCP server once, reads the tool list, hashes each tool, and writes `.mcp-lock.json`. From then on, their MCP client is pointed at `mcplock` instead of the raw servers; `mcplock` transparently proxies stdio but re-hashes every tool definition on each session start and on every `tools/list` response. If a hash matches the lockfile, traffic flows normally. If it drifts (a rug pull), `mcplock` refuses to forward the tool, logs the event locally, and — only if the developer has joined a workspace — sends a signed event to the Ingest API. The Security Lead sees that event in the Dashboard within seconds, alongside every other agent in the company. When the company standardizes, an admin edits the canonical lockfile once in the Dashboard and the Policy Distribution service pushes it to the whole fleet.
+A developer runs `mcpseal init` in their repo. It launches each configured MCP server once, reads the tool list, hashes each tool, and writes `.mcp-lock.json`. From then on, their MCP client is pointed at `mcpseal` instead of the raw servers; `mcpseal` transparently proxies stdio but re-hashes every tool definition on each session start and on every `tools/list` response. If a hash matches the lockfile, traffic flows normally. If it drifts (a rug pull), `mcpseal` refuses to forward the tool, logs the event locally, and — only if the developer has joined a workspace — sends a signed event to the Ingest API. The Security Lead sees that event in the Dashboard within seconds, alongside every other agent in the company. When the company standardizes, an admin edits the canonical lockfile once in the Dashboard and the Policy Distribution service pushes it to the whole fleet.
 
 ---
 
@@ -99,7 +99,7 @@ This determinism is non-negotiable: the Control Plane will re-hash tool definiti
 {
   "version": 1,
   "generatedAt": "2026-08-17T00:00:00Z",
-  "generatedBy": "mcplock@0.1.0",
+  "generatedBy": "mcpseal@0.1.0",
   "servers": {
     "github": {
       "transport": "stdio",
@@ -153,32 +153,32 @@ The critical property: **the proxy fails closed.** If it can't read the lockfile
 
 ### 3.1 Language and distribution
 
-Ship **two thin distributions over one shared core**: a TypeScript package runnable via `npx mcplock` (because Cursor, Claude Code, VS Code, Windsurf and most MCP clients live in the Node ecosystem) and a Python package runnable via `uvx mcplock` (because a large share of MCP servers are Python and many agent developers live in `uv`). Copy Invariant's proven distribution model exactly — a zero-install, no-config `uvx mcp-scan@latest`-style invocation was their single strongest adoption lever. The two front-ends must produce byte-identical lockfiles (see canonical hashing above); the cleanest way to guarantee that is to keep the hashing + drift logic in one place and treat TS/Python as wrappers, but if that's too slow to start, duplicate the logic and pin it with a shared cross-language test vector file (a fixture of tool definitions with their expected hashes that both languages' test suites assert against).
+Ship **two thin distributions over one shared core**: a TypeScript package runnable via `npx mcpseal` (because Cursor, Claude Code, VS Code, Windsurf and most MCP clients live in the Node ecosystem) and a Python package runnable via `uvx mcpseal` (because a large share of MCP servers are Python and many agent developers live in `uv`). Copy Invariant's proven distribution model exactly — a zero-install, no-config `uvx mcp-scan@latest`-style invocation was their single strongest adoption lever. The two front-ends must produce byte-identical lockfiles (see canonical hashing above); the cleanest way to guarantee that is to keep the hashing + drift logic in one place and treat TS/Python as wrappers, but if that's too slow to start, duplicate the logic and pin it with a shared cross-language test vector file (a fixture of tool definitions with their expected hashes that both languages' test suites assert against).
 
 ### 3.2 The command surface
 
 ```
-mcplock init            # discover MCP servers from client configs, generate .mcp-lock.json
-mcplock scan            # one-shot: re-hash all tools, report drift, exit non-zero on drift (CI-friendly)
-mcplock proxy <server>  # internal: the stdio proxy the client actually launches (not typed by humans)
-mcplock install         # rewrite MCP client configs to route servers through mcplock proxy
-mcplock uninstall       # restore original client configs
-mcplock approve <tool>  # move a quarantined/unknown tool to approved, update lockfile
-mcplock deny <tool>     # mark a tool denied
-mcplock diff            # human-readable old-vs-new description diff for any drifted tool
-mcplock login           # (Tier 2+) authenticate this machine to a workspace
-mcplock status          # show which servers/tools are protected and workspace connection state
-mcplock policy-pull     # (Tier 3, Milestone 6) fetch the org's current signed policy, verify it
+mcpseal init            # discover MCP servers from client configs, generate .mcp-lock.json
+mcpseal scan            # one-shot: re-hash all tools, report drift, exit non-zero on drift (CI-friendly)
+mcpseal proxy <server>  # internal: the stdio proxy the client actually launches (not typed by humans)
+mcpseal install         # rewrite MCP client configs to route servers through mcpseal proxy
+mcpseal uninstall       # restore original client configs
+mcpseal approve <tool>  # move a quarantined/unknown tool to approved, update lockfile
+mcpseal deny <tool>     # mark a tool denied
+mcpseal diff            # human-readable old-vs-new description diff for any drifted tool
+mcpseal login           # (Tier 2+) authenticate this machine to a workspace
+mcpseal status          # show which servers/tools are protected and workspace connection state
+mcpseal policy-pull     # (Tier 3, Milestone 6) fetch the org's current signed policy, verify it
                         # against the org public key pinned at login, and atomically replace
                         # .mcp-lock.json — only if the signature verifies AND the version is
                         # newer. Any verification failure leaves the existing lockfile untouched.
 ```
 
-`mcplock init` and `mcplock scan` must work with zero flags, zero config, and zero account. That's the adoption contract.
+`mcpseal init` and `mcpseal scan` must work with zero flags, zero config, and zero account. That's the adoption contract.
 
 ### 3.3 The install mechanism — how the proxy gets in the path
 
-MCP clients launch servers from a config file (e.g. `claude_desktop_config.json`, Cursor's `mcp.json`) that specifies a `command` and `args`. `mcplock install` rewrites each server entry so the client launches `mcplock proxy <original-command…>` instead of the original command directly. `mcplock proxy` then:
+MCP clients launch servers from a config file (e.g. `claude_desktop_config.json`, Cursor's `mcp.json`) that specifies a `command` and `args`. `mcpseal install` rewrites each server entry so the client launches `mcpseal proxy <original-command…>` instead of the original command directly. `mcpseal proxy` then:
 
 1. Spawns the real server as a child process.
 2. Pipes the client's stdin to the child and the child's stdout back to the client — transparent stdio passthrough.
@@ -189,7 +189,7 @@ This is the whole reason you have no infrastructure and install in 30 seconds: e
 
 ### 3.4 Local storage (free tier)
 
-Everything the free tier needs lives in two places: `.mcp-lock.json` in the repo (committed, shareable) and a local append-only event log at `~/.mcplock/events.jsonl` (not committed, machine-local, for `mcplock status` history). No database, no daemon. The event log is what gets *optionally* shipped to the Control Plane if the user joins a workspace — same records, different destination.
+Everything the free tier needs lives in two places: `.mcp-lock.json` in the repo (committed, shareable) and a local append-only event log at `~/.mcpseal/events.jsonl` (not committed, machine-local, for `mcpseal status` history). No database, no daemon. The event log is what gets *optionally* shipped to the Control Plane if the user joins a workspace — same records, different destination.
 
 ---
 
@@ -210,7 +210,7 @@ Run three logical services (they can be three processes in one repo to start; sp
 ```
 POST /v1/events
 Authorization: Bearer <workspace_api_key>
-X-MCPLock-Signature: <ed25519 sig of body, using machine key>
+X-McpSeal-Signature: <ed25519 sig of body, using machine key>
 Content-Type: application/json
 
 {
@@ -227,17 +227,17 @@ Content-Type: application/json
       "expectedHash": "sha256:…",
       "descriptionDiff": "…redacted-or-hashed…",
       "clientApp": "cursor",
-      "mcplockVersion": "0.1.0"
+      "mcpsealVersion": "0.1.0"
     }
   ]
 }
 ```
 
-Privacy discipline (this *is* a security product — leaking here is fatal): never transmit the contents or results of tool *calls*, only metadata about tool *definitions* and block decisions. Mirror Invariant's stated posture exactly — "collects data about tool descriptions and how they change over time, not your user data." Make the description diff redactable/hashable via config, and document precisely what leaves the machine. The consent to send anything at all is `mcplock login` joining a workspace; before that, the Ingest API is never called.
+Privacy discipline (this *is* a security product — leaking here is fatal): never transmit the contents or results of tool *calls*, only metadata about tool *definitions* and block decisions. Mirror Invariant's stated posture exactly — "collects data about tool descriptions and how they change over time, not your user data." Make the description diff redactable/hashable via config, and document precisely what leaves the machine. The consent to send anything at all is `mcpseal login` joining a workspace; before that, the Ingest API is never called.
 
 ### 4.3 Signature model
 
-Each machine generates an **ed25519 keypair** on first `mcplock login`; the public key is registered to the workspace. Every event batch is signed with the machine's private key. The Ingest API verifies the signature against the registered public key before accepting. This prevents a leaked API key alone from letting an attacker forge events (they'd also need a registered machine key), and it's the substrate for tamper-evident audit trails (Part 8).
+Each machine generates an **ed25519 keypair** on first `mcpseal login`; the public key is registered to the workspace. Every event batch is signed with the machine's private key. The Ingest API verifies the signature against the registered public key before accepting. This prevents a leaked API key alone from letting an attacker forge events (they'd also need a registered machine key), and it's the substrate for tamper-evident audit trails (Part 8).
 
 ---
 
@@ -255,7 +255,7 @@ team_members    (team_id, user_id)
 -- The workspace a CLI connects to
 workspaces      (id, org_id, name, created_at)
 machines        (id, workspace_id, machine_id, public_key, hostname_hash,
-                 first_seen, last_seen, mcplock_version)
+                 first_seen, last_seen, mcpseal_version)
 
 -- Auth
 sessions        (id, user_id, expires_at, ...)     -- if using own session store
@@ -331,9 +331,9 @@ Every API call ──► middleware validates session cookie ──► loads use
 
 ### 6.2 Machine auth (CLI → Control Plane)
 
-This is headless, for the `mcplock` process shipping events. Completely separate mechanism:
+This is headless, for the `mcpseal` process shipping events. Completely separate mechanism:
 
-- `mcplock login` opens a browser to a **device-authorization flow** (like `gh auth login`): the CLI shows a code, the user approves it in the already-authenticated Dashboard, and the CLI receives a **workspace API key** (scoped to one workspace, revocable, stored in the OS keychain — `keytar` on Node, `keyring` on Python, never a plaintext dotfile).
+- `mcpseal login` opens a browser to a **device-authorization flow** (like `gh auth login`): the CLI shows a code, the user approves it in the already-authenticated Dashboard, and the CLI receives a **workspace API key** (scoped to one workspace, revocable, stored in the OS keychain — `keytar` on Node, `keyring` on Python, never a plaintext dotfile).
 - On the same login the CLI generates its **ed25519 machine keypair** and registers the public key to the workspace (Part 4.3).
 - Thereafter every event batch carries `Authorization: Bearer <api_key>` **and** an ed25519 signature. Two factors: possession of the key and possession of the registered machine key. Revoking either (in the Dashboard) cuts the machine off.
 
@@ -351,7 +351,7 @@ Next.js (App Router) + TypeScript + Tailwind. Server components for data-heavy p
 
 **Live Feed** — the money screen. A realtime stream of blocked events across every agent in the org, each row showing tool, server, machine, the old-vs-new description diff, and severity. This is the single view the free tier structurally cannot show (it only sees one machine), so it must be immediately, obviously valuable. This screen *is* the upgrade pitch.
 
-**Fleet** — every machine/agent with its last-seen, mcplock version, and connection health. This is where "how many agents do we have and are they all protected" gets answered — the question that turns a Team account into an Enterprise conversation.
+**Fleet** — every machine/agent with its last-seen, mcpseal version, and connection health. This is where "how many agents do we have and are they all protected" gets answered — the question that turns a Team account into an Enterprise conversation.
 
 **Policy** — view/edit the canonical org `.mcp-lock.json`, approve/deny tools org-wide, and (Enterprise) push to teams. Every edit is versioned in the `policies` table.
 
@@ -369,7 +369,7 @@ Gate on the **visibility cap**, transparently. Free/Team users should *see* the 
 
 ### 8.1 Centralized policy push
 
-An admin edits the canonical lockfile in the Dashboard → App API writes a new `policies` row (version N+1) → **signs the lockfile with the org's private signing key** → the Policy Distribution worker marks it current for the targeted teams. Each `mcplock` client polls (or receives via its event-channel response) the current policy version for its workspace; on a new version it downloads the signed lockfile, **verifies the org signature against the org public key it pinned at login**, and atomically replaces its local `.mcp-lock.json`. This is how one edit protects 5,000 agents. The signature verification is what stops the push channel from becoming an attack vector — a client only accepts a lockfile signed by its own org.
+An admin edits the canonical lockfile in the Dashboard → App API writes a new `policies` row (version N+1) → **signs the lockfile with the org's private signing key** → the Policy Distribution worker marks it current for the targeted teams. Each `mcpseal` client polls (or receives via its event-channel response) the current policy version for its workspace; on a new version it downloads the signed lockfile, **verifies the org signature against the org public key it pinned at login**, and atomically replaces its local `.mcp-lock.json`. This is how one edit protects 5,000 agents. The signature verification is what stops the push channel from becoming an attack vector — a client only accepts a lockfile signed by its own org.
 
 ### 8.2 SSO & RBAC
 
@@ -386,7 +386,7 @@ Compliance buyers don't just want logs; they want logs they can *prove* weren't 
 You are shipping a tool that sits in the trust path of AI agents. If *you* get compromised, you become the supply-chain attack. Non-negotiables:
 
 - **Fail closed everywhere.** Any error in the proxy blocks and reports; any error verifying a pushed policy rejects the policy and keeps the last-known-good.
-- **Sign your releases.** The `mcplock` binary/package must be signed and reproducible; publish checksums; use npm/PyPI provenance/attestations. An unsigned auto-update channel is a rug pull waiting to happen against your own users.
+- **Sign your releases.** The `mcpseal` binary/package must be signed and reproducible; publish checksums; use npm/PyPI provenance/attestations. An unsigned auto-update channel is a rug pull waiting to happen against your own users.
 - **Pin the org signing key at login, verify every push.** (Part 8.1.) A pushed lockfile is the highest-value attack surface you have.
 - **Minimize what leaves the machine.** Tool-definition metadata and block decisions only; never tool-call contents. Document it publicly; let users hash/redact diffs.
 - **Secrets in the keychain, never dotfiles.** API keys via OS keychain; ed25519 private keys never leave the machine.
@@ -409,11 +409,11 @@ You are shipping a tool that sits in the trust path of AI agents. If *you* get c
 A monorepo keeps the cross-language hash parity honest and the deploy simple early.
 
 ```
-mcplock/
+mcpseal/
 ├── packages/
 │   ├── cli-core/          # shared hashing + drift logic (the canonical spec)
-│   ├── cli-node/          # npx mcplock  (TS wrapper over core)
-│   ├── cli-python/        # uvx mcplock  (Python wrapper over core)
+│   ├── cli-node/          # npx mcpseal  (TS wrapper over core)
+│   ├── cli-python/        # uvx mcpseal  (Python wrapper over core)
 │   └── shared-types/      # event/lockfile schemas shared with backend
 ├── services/
 │   ├── ingest/            # Go/Rust write-path
@@ -437,9 +437,9 @@ Build strictly in this order. Each milestone is independently useful and de-risk
 
 **Milestone 1 — The lockfile core (week 1).** `cli-core`: canonical hashing, lockfile read/write, the drift state machine, and `hash-fixtures.json` with passing tests in both languages. No proxy yet. Deliverable: given a list of tool definitions, produce and diff a lockfile deterministically.
 
-**Milestone 2 — The proxy + CLI (weeks 1–2).** `mcplock init`, `mcplock install/uninstall`, `mcplock proxy`, `mcplock scan`. Wire it into one real client (Claude Code or Cursor) against one real MCP server (e.g. the GitHub server). Deliverable: a rug pull you stage against a local server gets blocked, locally, with a visible diff, no account. **This is the entire free product and the whole wedge. Ship it publicly. Everything after this is monetization.**
+**Milestone 2 — The proxy + CLI (weeks 1–2).** `mcpseal init`, `mcpseal install/uninstall`, `mcpseal proxy`, `mcpseal scan`. Wire it into one real client (Claude Code or Cursor) against one real MCP server (e.g. the GitHub server). Deliverable: a rug pull you stage against a local server gets blocked, locally, with a visible diff, no account. **This is the entire free product and the whole wedge. Ship it publicly. Everything after this is monetization.**
 
-**Milestone 3 — Ingest + Event Store (week 3).** Stand up Postgres + the event store, the Ingest API, `mcplock login` (device flow + keychain + ed25519 registration), and opt-in event shipping. Deliverable: an opted-in machine's blocks appear in the event store.
+**Milestone 3 — Ingest + Event Store (week 3).** Stand up Postgres + the event store, the Ingest API, `mcpseal login` (device flow + keychain + ed25519 registration), and opt-in event shipping. Deliverable: an opted-in machine's blocks appear in the event store.
 
 **Milestone 4 — App API + Auth + Dashboard skeleton (weeks 3–4).** WorkOS human auth, sessions, RBAC, orgs/users/workspaces CRUD, and the **Live Feed** page reading from the event store. Deliverable: a Security Lead logs in and watches blocks stream in across machines. This is the first thing worth paying for.
 

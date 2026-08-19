@@ -1,13 +1,13 @@
 # Mirrors packages/cli-node/src/status.test.ts. build_status_report must
 # never touch the network and must work with isolated temp paths, never
-# the real ~/.mcplock.
+# the real ~/.mcpseal.
 import os
 import sys
 
-from mcplock.config import write_config
-from mcplock.event_log import append_event
-from mcplock.init import init as init_cmd
-from mcplock.status import build_status_report, format_status_report
+from mcpseal.config import write_config
+from mcpseal.event_log import append_event
+from mcpseal.init import init as init_cmd
+from mcpseal.status import build_status_report, format_status_report
 
 STUB_SERVER = os.path.join(os.path.dirname(__file__), "test_fixtures", "stub_server.py")
 PY = sys.executable
@@ -44,7 +44,7 @@ def test_proxy_installed_flag(tmp_path):
     p = paths(tmp_path)
     report = build_status_report(str(tmp_path), **p)
     assert report.local.proxyInstalled is False
-    (tmp_path / ".mcp.json.mcplock-backup").write_text("{}", encoding="utf-8")
+    (tmp_path / ".mcp.json.mcpseal-backup").write_text("{}", encoding="utf-8")
     report2 = build_status_report(str(tmp_path), **p)
     assert report2.local.proxyInstalled is True
 
@@ -76,4 +76,4 @@ def test_format_status_report_has_both_sections(tmp_path):
     text = format_status_report(report)
     assert "LOCAL HEALTH" in text
     assert "CONTROL PLANE" in text
-    assert "mcplock init" in text
+    assert "mcpseal init" in text

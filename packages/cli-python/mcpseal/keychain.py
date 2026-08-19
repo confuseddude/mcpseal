@@ -10,7 +10,7 @@
 import keyring
 import keyring.errors
 
-SERVICE = "mcplock"
+SERVICE = "mcpseal"
 
 
 def set_secret(account: str, secret: str) -> None:

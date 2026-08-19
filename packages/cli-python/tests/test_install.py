@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-from mcplock.install import install, uninstall
+from mcpseal.install import install, uninstall
 
 
 def write_config(tmp_path, content):
@@ -22,7 +22,7 @@ def test_install_rewrites_command_and_args(tmp_path):
     result = install(str(tmp_path))
     config = json.loads((tmp_path / ".mcp.json").read_text(encoding="utf-8"))
     assert config["mcpServers"]["a"]["command"] == "uvx"
-    assert config["mcpServers"]["a"]["args"] == ["mcplock", "proxy", "a", "node", "server.js"]
+    assert config["mcpServers"]["a"]["args"] == ["mcpseal", "proxy", "a", "node", "server.js"]
     assert result["serverCount"] == 1
     assert os.path.exists(result["backupPath"])
 
