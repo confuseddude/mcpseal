@@ -169,6 +169,61 @@ describe("ingest app", () => {
     expect(res.statusCode).toBe(401);
   });
 
+  // Track A adversarial test: a real security property (app.ts:121's
+  // `if (!rec || rec.revokedAt) return null`) that had NO regression test
+  // before this — a revoked credential must fail closed immediately, not
+  // just "eventually" via some cleanup job. Simulates what happens after
+  // an admin revokes a key via the App API's DELETE /v1/api-keys/:keyId
+  // (which sets revoked_at on the exact same physical row, since both
+  // services share the DB) by revoking it directly here.
+  it("a revoked API key is rejected immediately, even though it was valid moments ago", async () => {
+    const { apiKeyToken, workspaceId } = await setupApprovedWorkspace(app);
+    const { privateKey, publicKeyHex } = makeMachineKeypair();
+    const machineId = randomUUID();
+    await app.inject({
+      method: "POST",
+      url: "/v1/machines/register",
+      headers: { authorization: `Bearer ${apiKeyToken}` },
+      payload: { workspaceId, machineId, publicKey: publicKeyHex, mcplockVersion: "0.1.0" },
+    });
+
+    // Prove the key works before revocation.
+    const workingBody = { machineId, workspaceId, batch: [] };
+    const workingRaw = JSON.stringify(workingBody);
+    const workingSig = bytesToHex(ed25519.sign(Buffer.from(workingRaw, "utf-8"), privateKey));
+    const before = await app.inject({
+      method: "POST",
+      url: "/v1/events",
+      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcplock-signature": workingSig, "content-type": "application/json" },
+      payload: workingRaw,
+    });
+    expect(before.statusCode).toBe(202);
+
+    // Revoke it (same table/column the App API's revoke endpoint writes).
+    const keyId = apiKeyToken.split(".")[0];
+    const db = (app as unknown as { mcplockDb: import("better-sqlite3").Database }).mcplockDb;
+    db.prepare("UPDATE api_keys SET revoked_at = ? WHERE key_id = ?").run(new Date().toISOString(), keyId);
+
+    // The exact same, previously-valid request must now be rejected.
+    const after = await app.inject({
+      method: "POST",
+      url: "/v1/events",
+      headers: { authorization: `Bearer ${apiKeyToken}`, "x-mcplock-signature": workingSig, "content-type": "application/json" },
+      payload: workingRaw,
+    });
+    expect(after.statusCode).toBe(401);
+
+    // Machine registration itself is also gated by the same auth check —
+    // a revoked key can't register a NEW machine either.
+    const regAfterRevoke = await app.inject({
+      method: "POST",
+      url: "/v1/machines/register",
+      headers: { authorization: `Bearer ${apiKeyToken}` },
+      payload: { workspaceId, machineId: randomUUID(), publicKey: publicKeyHex, mcplockVersion: "0.1.0" },
+    });
+    expect(regAfterRevoke.statusCode).toBe(401);
+  });
+
   it("rejects an unregistered machine", async () => {
     const { apiKeyToken, workspaceId } = await setupApprovedWorkspace(app);
     const body = { machineId: randomUUID(), workspaceId, batch: [] };
