@@ -1,40 +1,61 @@
 #!/usr/bin/env python3
 # Mirrors packages/cli-node/src/cli.ts's command surface (build-bible.md
-# Part 3.2): init, proxy, install, uninstall, scan, approve, deny, diff,
-# status, login, policy-pull.
+# Part 3.2). Track A ("wedge completion"): every command's failure output
+# now goes through events.py's classify_thrown()/describe_drift_reason()/
+# describe_policy_outcome() for diagnosis + consequence + remediation,
+# without changing any underlying security decision or existing message
+# text (several existing tests assert on those exact strings).
 from __future__ import annotations
 
+import json
 import os
 import sys
 import threading
 
-from mcplock.config import is_logged_in, read_config
+from mcplock.config import clear_config, is_logged_in, read_config
 from mcplock.diff import diff_drifted, format_diff
-from mcplock.event_log import append_event, read_events, recent_blocks
+from mcplock.doctor import format_doctor_report, run_doctor
+from mcplock.event_log import append_event
+from mcplock.events import classify_thrown, describe_drift_reason, describe_policy_outcome, format_event_block
 from mcplock.init import init as init_cmd
 from mcplock.install import install as install_cmd
 from mcplock.install import uninstall as uninstall_cmd
-from mcplock.keychain import get_secret
+from mcplock.keychain import delete_secret, get_secret
 from mcplock.lockfile import read_lockfile
 from mcplock.login import API_KEY_ACCOUNT, LoginError, login as login_cmd
+from mcplock.machine_identity import PRIVATE_KEY_ACCOUNT
 from mcplock.manage import set_tool_status
 from mcplock.policy_sync import pull_and_apply_policy
 from mcplock.proxy import run_proxy
 from mcplock.scan import scan as scan_cmd
 from mcplock.ship_events import ship_events_best_effort
+from mcplock.status import build_status_report, format_status_report
 
 USAGE = (
     "Unknown or missing command: {command}\n"
-    "Usage: mcplock init|install|uninstall|status|scan|diff|login|policy-pull [projectDir] | "
+    "Usage: mcplock init|install|uninstall|status|doctor|scan|diff|login|logout|policy-pull [projectDir] [--json] | "
     "mcplock proxy <serverName> <command> [args...] | "
     "mcplock approve|deny <serverName> <toolName>"
 )
 
 
+def _extract_json_flag(args: list[str]) -> tuple[bool, list[str]]:
+    return "--json" in args, [a for a in args if a != "--json"]
+
+
+def _print_classified(err: BaseException, file=None) -> None:
+    # `file` must resolve sys.stderr at CALL time, not def time -- a
+    # default of `file=sys.stderr` would bind whatever sys.stderr WAS when
+    # this module was first imported, which breaks output-capturing test
+    # fixtures (pytest's capsys monkeypatches sys.stderr per-test) and
+    # would silently write to the wrong stream after any stderr swap.
+    print(format_event_block(classify_thrown(err)), file=file or sys.stderr)
+
+
 def main(argv: list[str] | None = None) -> int:
-    args = argv if argv is not None else sys.argv[1:]
-    command = args[0] if args else None
-    rest = args[1:]
+    raw_args = argv if argv is not None else sys.argv[1:]
+    command = raw_args[0] if raw_args else None
+    json_flag, rest = _extract_json_flag(raw_args[1:])
 
     if command == "init":
         project_dir = rest[0] if rest else os.getcwd()
@@ -57,15 +78,21 @@ def main(argv: list[str] | None = None) -> int:
         # Fail closed (CLAUDE.md invariant 1): if the lockfile can't be
         # read, refuse to start rather than proxying traffic unchecked.
         lockfile_path = os.path.join(os.getcwd(), ".mcp-lock.json")
-        lockfile = read_lockfile(lockfile_path)
+        try:
+            lockfile = read_lockfile(lockfile_path)
+        except ValueError as err:
+            _print_classified(err)
+            return 1
 
         def on_decision(tool_name: str, result: dict) -> None:
             if result["decision"] != "block":
                 return
-            print(f'mcplock: blocked tool "{tool_name}" ({result["reason"]})', file=sys.stderr)
+            desc = describe_drift_reason(result["reason"])
+            extra = {"server": server_name, "tool": tool_name, "expected": result.get("oldHash"), "observed": result.get("newHash")}
             if result["reason"] == "blocked_drift":
-                print(f"  old description: {result.get('oldDescription')}", file=sys.stderr)
-                print(f"  new description: {result.get('newDescription')}", file=sys.stderr)
+                extra["old description"] = result.get("oldDescription")
+                extra["new description"] = result.get("newDescription")
+            print(format_event_block(desc, extra), file=sys.stderr)
             append_event(
                 type_=result["reason"],
                 server=server_name,
@@ -112,12 +139,30 @@ def main(argv: list[str] | None = None) -> int:
     if command == "scan":
         project_dir = rest[0] if rest else os.getcwd()
         decisions = scan_cmd(project_dir)
-        any_blocked = False
-        for d in decisions:
-            label = "BLOCK" if d["result"]["decision"] == "block" else "OK   "
-            print(f"{label} {d['serverName']}/{d['toolName']} ({d['result']['reason']})")
-            if d["result"]["decision"] == "block":
-                any_blocked = True
+        any_blocked = any(d["result"]["decision"] == "block" for d in decisions)
+        if json_flag:
+            rows = []
+            for d in decisions:
+                desc = describe_drift_reason(d["result"]["reason"])
+                rows.append(
+                    {
+                        "server": d["serverName"],
+                        "tool": d["toolName"],
+                        "decision": d["result"]["decision"],
+                        "reason": d["result"]["reason"],
+                        "code": desc.code,
+                        "severity": desc.severity,
+                    }
+                )
+            print(json.dumps({"decisions": rows, "blocked": any_blocked}, indent=2))
+        else:
+            for d in decisions:
+                label = "BLOCK" if d["result"]["decision"] == "block" else "OK   "
+                print(f"{label} {d['serverName']}/{d['toolName']} ({d['result']['reason']})")
+                if d["result"]["decision"] == "block":
+                    desc = describe_drift_reason(d["result"]["reason"])
+                    if desc.remediation:
+                        print(f"      next: {desc.remediation[0]}")
         # CI-friendly (Part 3.2): non-zero exit specifically signals drift/blocks.
         return 1 if any_blocked else 0
 
@@ -127,8 +172,19 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         server_name, tool_name = rest[0], rest[1]
         status = "approved" if command == "approve" else "denied"
-        result = set_tool_status(os.getcwd(), server_name, tool_name, status)
-        print(f"mcplock {command}: {result['serverName']}/{result['toolName']} is now \"{result['status']}\" ({result['hash']})")
+        try:
+            result = set_tool_status(os.getcwd(), server_name, tool_name, status)
+        except ValueError as err:
+            _print_classified(err)
+            return 1
+        # Approve/deny only ever change the LOCAL lockfile — say so
+        # explicitly so this is never confused with organization-wide
+        # policy, which only an admin can push via the Control Plane and
+        # `mcplock policy-pull`.
+        print(
+            f"mcplock {command}: {result['serverName']}/{result['toolName']} is now "
+            f"\"{result['status']}\" ({result['hash']}) — local lockfile only, not organization policy"
+        )
         return 0
 
     if command == "diff":
@@ -139,23 +195,29 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         for d in diffs:
             print(format_diff(d))
+            print("  next:")
+            print(f"    mcplock approve {d['serverName']} {d['toolName']}   # only after reviewing the change above")
+            print(f"    mcplock deny {d['serverName']} {d['toolName']}")
+            print("")
         return 0
 
     if command == "status":
-        events = read_events()
-        blocks = recent_blocks(events, 10)
-        config = read_config()
-        if config and config.get("workspaceId"):
-            print(f"mcplock status: connected to workspace {config['workspaceId']} (machine {config['machineId']})")
+        report = build_status_report(os.getcwd())
+        if json_flag:
+            print(json.dumps(_status_to_dict(report), indent=2))
         else:
-            print("mcplock status: not logged in — running fully local, no workspace connection.")
-        if not events:
-            print("mcplock status: no events recorded yet on this machine.")
-            return 0
-        print(f"mcplock status: {len(events)} event(s) recorded, {len(blocks)} recent block(s):")
-        for b in blocks:
-            print(f"  [{b['ts']}] {b['type']} — {b['server']}/{b['tool']}")
+            print(format_status_report(report))
         return 0
+
+    if command == "doctor":
+        report = run_doctor(os.getcwd())
+        if json_flag:
+            print(json.dumps(_doctor_to_dict(report), indent=2))
+        else:
+            print(format_doctor_report(report))
+        # Only local-health failures affect the exit code — Control Plane
+        # unreachability is never a doctor failure (offline-first: Part 13).
+        return 0 if report.allLocalOk else 1
 
     if command == "login":
         if is_logged_in():
@@ -171,8 +233,19 @@ def main(argv: list[str] | None = None) -> int:
             print(f"mcplock login: connected to workspace {result.workspaceId} (machine {result.machineId})")
             return 0
         except LoginError as err:
-            print(f"mcplock login: failed — {err}", file=sys.stderr)
+            _print_classified(err)
             return 1
+
+    if command == "logout":
+        # Reverses login: clears the non-secret config AND both keychain
+        # secrets (the workspace API key and the machine's ed25519 private
+        # key). A fresh `mcplock login` afterward creates a brand-new
+        # machine identity rather than reusing a possibly-compromised one.
+        clear_config()
+        delete_secret(API_KEY_ACCOUNT)
+        delete_secret(PRIVATE_KEY_ACCOUNT)
+        print("mcplock logout: cleared workspace connection and local credentials. Local enforcement is unaffected.")
+        return 0
 
     if command == "policy-pull":
         # build-bible.md Part 8.1 (Milestone 6). Fail closed on every
@@ -181,41 +254,63 @@ def main(argv: list[str] | None = None) -> int:
         # is newer than what's already applied.
         api_key_token = get_secret(API_KEY_ACCOUNT)
         result = pull_and_apply_policy(api_key_token=api_key_token)
+        desc = describe_policy_outcome(result.outcome)
+        is_rejection = result.outcome.startswith("rejected") or result.outcome == "skipped-no-pinned-key"
+        extra = None
         if result.outcome == "applied":
-            print(f"mcplock policy-pull: applied signed policy version {result.version}")
-            return 0
-        if result.outcome == "no-newer-version":
-            print(f"mcplock policy-pull: already on the latest policy (version {result.currentVersion})")
-            return 0
-        if result.outcome == "skipped-not-logged-in":
-            print("mcplock policy-pull: not logged in — run `mcplock login` first")
-            return 0
-        if result.outcome == "skipped-no-pinned-key":
-            print("mcplock policy-pull: no org signing key pinned — refusing to trust any policy. Run `mcplock login` again.", file=sys.stderr)
+            extra = {"version": str(result.version)}
+        elif result.outcome == "no-newer-version":
+            extra = {"current version": str(result.currentVersion)}
+        elif result.outcome == "rejected-network-error":
+            extra = {"detail": result.message}
+        line = format_event_block(desc, extra)
+        if is_rejection:
+            print(line, file=sys.stderr)
             return 1
-        if result.outcome == "skipped-no-policy-published":
-            print("mcplock policy-pull: no policy has been published for this workspace yet")
-            return 0
-        if result.outcome == "rejected-invalid-signature":
-            print("mcplock policy-pull: REJECTED — signature verification failed. Existing lockfile left unchanged.", file=sys.stderr)
-            return 1
-        if result.outcome == "rejected-malformed-response":
-            print("mcplock policy-pull: REJECTED — malformed response from server. Existing lockfile left unchanged.", file=sys.stderr)
-            return 1
-        if result.outcome == "rejected-network-error":
-            print(f"mcplock policy-pull: could not reach the server ({result.message}). Existing lockfile left unchanged.", file=sys.stderr)
-            return 1
+        print(line)
         return 0
 
     print(USAGE.format(command=command or "(none)"), file=sys.stderr)
     return 1
 
 
+def _status_to_dict(report) -> dict:
+    return {
+        "local": {
+            "lockfilePresent": report.local.lockfilePresent,
+            "lockfileError": report.local.lockfileError,
+            "serverCount": report.local.serverCount,
+            "toolCount": report.local.toolCount,
+            "proxyInstalled": report.local.proxyInstalled,
+            "eventCount": report.local.eventCount,
+            "blockCount": report.local.blockCount,
+            "recentBlocks": report.local.recentBlocks,
+        },
+        "connection": {
+            "loggedIn": report.connection.loggedIn,
+            "workspaceId": report.connection.workspaceId,
+            "machineId": report.connection.machineId,
+            "ingestUrl": report.connection.ingestUrl,
+            "lastAppliedPolicyVersion": report.connection.lastAppliedPolicyVersion,
+        },
+    }
+
+
+def _doctor_to_dict(report) -> dict:
+    return {
+        "checks": [
+            {"name": c.name, "category": c.category, "ok": c.ok, "detail": c.detail, "remediation": c.remediation}
+            for c in report.checks
+        ],
+        "allLocalOk": report.allLocalOk,
+    }
+
+
 def entrypoint() -> None:
     try:
         sys.exit(main())
     except Exception as err:  # noqa: BLE001 — top-level CLI error boundary
-        print(f"mcplock: fatal error: {err}", file=sys.stderr)
+        _print_classified(err)
         sys.exit(1)
 
 
