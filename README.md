@@ -10,11 +10,11 @@ An MCP tool-integrity CLI: pins the hash of every approved MCP tool definition a
 
 ## Privacy — what leaves your machine
 
-**Nothing.** No telemetry, no network calls, no account, no exception — until you explicitly run `mcpseal login` to join a hosted workspace. That command doesn't exist yet (it's a later milestone); until it does, there is no code path in this tool that sends anything anywhere. Everything — the lockfile, the block decisions, the local event history — stays on disk on your machine.
+**Nothing, ever, unless you explicitly run `mcpseal login`.** No telemetry, no network calls, no account, no exception. If you never run `login`, there is no code path in this tool that sends anything anywhere — the lockfile, the block decisions, and the local event history all stay on disk on your machine, permanently. `login` is fully optional and only relevant if your organization runs the paid Control Plane (fleet visibility, signed policy push) — the free CLI above is the entire product for a solo developer.
 
 ## Status
 
-This is pre-release, mid-build software. It is **not yet published to npm or PyPI** — the quickstart below describes how it will work once published, plus how to run it locally today. Both distributions now have a full free-tier command-line interface (`npx mcpseal` / `uvx mcpseal`): init/proxy/install/uninstall/scan/approve/deny/diff/status. Neither distribution has `login`/hosted-workspace support yet (see the Privacy section above — that's still a later milestone for both languages).
+Full command-line interface in both languages (`npx mcpseal` / `uvx mcpseal`), including the optional login/workspace path: `init`, `proxy`, `install`, `uninstall`, `scan`, `approve`, `deny`, `diff`, `status`, `doctor`, `login`, `logout`, `policy-pull`. See `docs/DEVELOPER_QUICKSTART.md` for a full walkthrough and `TRACK_A_TEST_REPORT.md` for what's been tested and how.
 
 ## Quickstart (once published)
 
@@ -68,6 +68,10 @@ Currently supports Claude Code's project-scope config (`.mcp.json` with an `mcpS
 | `mcpseal approve <server> <tool>` | Trust a tool's current definition |
 | `mcpseal deny <server> <tool>` | Block a tool even if its hash matches |
 | `mcpseal diff` | Show the old-vs-new description for any drifted tool |
-| `mcpseal status` | Summarize recent blocks recorded locally |
+| `mcpseal status [--json]` | LOCAL HEALTH + CONTROL PLANE summary — always works offline |
+| `mcpseal doctor [--json]` | Deeper diagnostics; Control Plane unreachability never fails it |
+| `mcpseal login` | Optional: connect this machine to a hosted workspace |
+| `mcpseal logout` | Disconnect and clear local credentials |
+| `mcpseal policy-pull` | Fetch and verify a signed org policy, if connected |
 
-See `docs/build-bible.md` for the full architecture and `Tasks.md` for the build checklist and progress log.
+See `docs/build-bible.md` for the full architecture, `docs/DEVELOPER_QUICKSTART.md` for a hands-on walkthrough, and `Tasks.md` for the build checklist and progress log.
