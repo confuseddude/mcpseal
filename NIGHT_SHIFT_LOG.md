@@ -205,7 +205,14 @@ None to the substance of Part 8 — the one addition (`mcplock policy-pull`) is 
 ## Production Wiring Required
 - The actual `db.ts` (and `services/ingest/src/db.ts`, which has no Postgres schema staged yet at all) cutover to query this schema via `drizzle-orm/node-postgres` when `DATABASE_URL` is set, replacing the direct `better-sqlite3` calls — recommended as its own reviewed, tested-against-both-backends change, not bundled with routine feature work.
 - A real managed Postgres instance + `DATABASE_URL` in each service's environment.
-- `services/ingest`'s equivalent schema/migrations (not done this session — scoped to `app-api` first since it owns the larger, more security-sensitive domain model).
+- `services/ingest`'s equivalent schema/migrations — **done, same session, see immediately below.**
+
+## Update: services/ingest schema/migrations (2026-08-19, same session)
+- `services/ingest/src/schema.ts`: the 7-table subset ingest owns/reads (`workspaces`, `machines`, `api_keys`, `device_codes`, plus read-only `org_signing_keys`/`policies`), mirroring `services/ingest/src/db.ts`'s SQLite schema exactly — including the one real difference from app-api's copy of `events`: `prev_hash`/`chain_hash`/`batch_signature` are `NOT NULL` here (every row ingest writes populates them at insert time), not nullable, matching the SQLite constraint precisely rather than copy-pasting app-api's laxer version. Also ported the `idx_events_workspace_ts` composite index, which app-api's copy of this table doesn't declare (app-api never queries `events` by that pattern the way ingest's rate/lookup paths might).
+- `events` here is explicitly commented as a placeholder shape for local/dev Postgres only — Part 5.2's real production home for this table is ClickHouse/Timescale with partitioning/TTL DDL, not vanilla Postgres; this schema doesn't attempt to anticipate that.
+- Verified against a second real `postgres:16-alpine` container (separate port, dropped afterward): migration applied cleanly, `\dt`/`\d events` confirmed the NOT NULL/index differences from app-api's schema landed correctly, `\di` confirmed the composite index exists.
+- `package.json`: same `db:generate`/`db:migrate` scripts as app-api.
+- Full regression after both services' schema additions: 205 TS tests, still all passing (both schema.ts files are additive/unused by the running app).
 
 ---
 
