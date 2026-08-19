@@ -207,6 +207,45 @@ None to the substance of Part 8 — the one addition (`mcplock policy-pull`) is 
 - A real managed Postgres instance + `DATABASE_URL` in each service's environment.
 - `services/ingest`'s equivalent schema/migrations — **done, same session, see immediately below.**
 
+---
+
+# Post-Milestone-6 Hardening — Morning Action Item #2, partial (2026-08-19)
+
+## Built — Python CLI free-tier parity
+`packages/cli-python` had only the Milestone 1 core library (canonical_json/hash/lockfile/drift) — Part 3.1's "ship two thin distributions" was half-built, flagged since Milestone 2. This session ports the Milestone 2 free-tier command surface, independently implemented (not transpiled), Python-idiomatic per Tasks.md 1.8's precedent:
+
+- `mcp_client.py`: `McpStdioClient` — newline-delimited JSON-RPC over a spawned child's stdio, a background reader thread + condition-variable-based request/response correlation (Python's synchronous-by-default threading model in place of Node's event loop; same protocol behavior).
+- `process_utils.py`: `kill_process_tree()` — same Windows `taskkill /T` finding as cli-node's `process-utils.ts` (shell=True means the tracked PID is the shell wrapper's, not the real child's).
+- `config_discovery.py`, `command_hash.py`: direct ports of the TS logic (same judgment calls: Claude Code's project-scope `.mcp.json`, commandHash = sha256 of canonical `{command,args}`).
+- `init.py`, `scan.py`, `manage.py` (`set_tool_status`), `diff.py`: direct ports of `init.ts`/`scan.ts`/`manage.ts`/`diff.ts`'s logic against the same `mcplock.hash`/`mcplock.lockfile`/`mcplock.drift` core from Milestone 1.
+- `install.py`: same byte-for-byte backup/restore guarantee as `install.ts`, but with the correct Python-CLI default invocation (`uvx mcplock`, not `npx mcplock` — Part 3.1's actual distribution model for this language).
+- `event_log.py`: same `~/.mcplock/events.jsonl` local, no-account-required log (CLAUDE.md invariant 2).
+- `proxy.py`: `run_proxy()` — two daemon threads (`pump_input`/`pump_output`) instead of Node's event-driven stdio piping, same fail-closed contract (any tools-bearing response is parsed and filtered through `check_drift`; anything unparseable is passed through byte-for-byte unchanged since it can't carry a tool list).
+- `cli.py`: the command entrypoint, wired as a real `console_scripts` entry (`mcplock = "mcplock.cli:entrypoint"` in `pyproject.toml`) — `pip install -e .` makes a real `mcplock` binary, not just an importable library.
+
+## Deliberately NOT ported this pass
+`login`/`ship-events`/`policy-sync` (Milestones 3/6: device-flow auth, OS keychain, ed25519 machine identity, network calls, signature verification) are **not** in this pass. `mcplock status` always reports "not logged in" on the Python CLI for now — honest, not faked. Rationale, same spirit as the Postgres-cutover scoping decision above: this is real, separately-reviewable scope (keychain bindings differ meaningfully by OS/language, and getting the fail-closed signature-verification port right deserves its own focused pass, not a package deal with the free-tier command surface). The free-tier CLI (init/proxy/install/uninstall/scan/approve/deny/diff/status) is fully real and independently useful without it — CLAUDE.md invariant 2 ("free CLI never phones home until login") is trivially satisfied since there is currently no network code in this package at all.
+
+## Verified
+- 73 Python tests total (was 39): 23 new unit tests (config_discovery, command_hash, install — including a real byte-identical install→uninstall round trip via md5, event_log), 3 real proxy integration tests (spawns an actual Python stub MCP server subprocess through `run_proxy()`, real OS pipes standing in for the client, forwards `initialize` untouched, strips a denied tool from `tools/list` while keeping the approved one, passes `tools/call` traffic through unmodified, verifies the `on_decision` callback fires with the correct block reason), 8 real init/scan/manage/diff integration tests against a mutable stub server (rug-pull description rotation via an env var across separate spawns) — including the literal Tasks.md 2.6 done-criteria check (`main(["scan", dir])` returns 0 clean / 1 on drift).
+- **Real, non-mocked end-to-end run through the actually-installed `mcplock` binary** (`pip install -e .`, then uninstalled again afterward to leave the machine's global Python environment clean — see Executive Decisions): `mcplock init` against a real spawned Python MCP server, `mcplock scan` clean (exit 0) then drifted (exit 1) after mutating the served tool description via env var, `mcplock diff` showing the real old-vs-new description text, `mcplock approve`/`mcplock deny` re-fetching live definitions and flipping status correctly, `mcplock install`/`uninstall` round-tripping the config, and **`mcplock proxy` for real** — piped raw JSON-RPC through stdin, confirmed `initialize` forwarded untouched, the drifted tool was blocked and stripped from the forwarded `tools/list` response, the block reason (with old/new description) was printed to stderr, and the block landed in the real local event log with the correct description diff (verified by reading `~/.mcplock/events.jsonl` directly).
+- Found and fixed one real bug via that end-to-end run, not caught by the unit/integration tests: the `pipes` pytest fixture in `test_proxy_integration.py` closed a background thread's in-use pipe file object from the main thread during teardown, which deadlocks on Windows (a blocked read and a concurrent close on the same `TextIOWrapper` contend for the same internal lock). Fixed by closing only the ends the test itself exclusively owns (`client_w`, `out_r`) and letting EOF propagate naturally to the background thread's read instead of force-closing out from under it — this is a test-only fix, not a product code path.
+- Full regression after this change: 73 Python tests (was 39) + 205 TS tests, all still passing. All real machine state touched during the e2e run (the editable pip install, `~/.mcplock/config`/`events.jsonl`, the temp project dir) was cleaned up afterward.
+
+## Executive Decisions
+- Uninstalled the editable `pip install -e .` after verification rather than leaving it in place — pytest itself doesn't need it (its rootdir-based import resolution finds `mcplock/` next to `tests/` without any install, confirmed by re-running the full suite after uninstalling), and leaving an editable dev install of a not-yet-released product sitting on the actual global Python environment as a real `mcplock` command felt like an avoidable footprint on the user's machine for something that was only needed to prove the packaged `console_scripts` entry point works at all.
+- `install.py`'s default invocation is `uvx mcplock` (not `npx mcplock`, cli-node's default) — this isn't a port bug, it's Part 3.1's actual per-language distribution model; cli-node's own default was chosen the same way for its language.
+
+## Spec Deviations
+None — this fills the Part 3.1 "ship two thin distributions" gap that was explicitly flagged (not silently skipped) at the end of Milestone 2, using the same Tasks.md 1.8 precedent (independent, Python-idiomatic implementation, not transpiled) already established for the Milestone 1 core.
+
+## Production Wiring Required
+- `login`/`ship-events`/`policy-sync` for the Python CLI (Milestones 3/6 parity) — the largest remaining piece of the "ship two thin distributions" gap; scoped out of this pass, see above.
+- `uvx mcplock` packaging/publish verification (mirroring cli-node's 2.7: a real `uvx` install-and-run smoke test from a built wheel/sdist, not just `pip install -e .`) — not attempted this session.
+- PyPI publish itself remains out of scope (irreversible/public action), same boundary the TS session already drew for npm.
+
+---
+
 ## Update: services/ingest schema/migrations (2026-08-19, same session)
 - `services/ingest/src/schema.ts`: the 7-table subset ingest owns/reads (`workspaces`, `machines`, `api_keys`, `device_codes`, plus read-only `org_signing_keys`/`policies`), mirroring `services/ingest/src/db.ts`'s SQLite schema exactly — including the one real difference from app-api's copy of `events`: `prev_hash`/`chain_hash`/`batch_signature` are `NOT NULL` here (every row ingest writes populates them at insert time), not nullable, matching the SQLite constraint precisely rather than copy-pasting app-api's laxer version. Also ported the `idx_events_workspace_ts` composite index, which app-api's copy of this table doesn't declare (app-api never queries `events` by that pattern the way ingest's rate/lookup paths might).
 - `events` here is explicitly commented as a placeholder shape for local/dev Postgres only — Part 5.2's real production home for this table is ClickHouse/Timescale with partitioning/TTL DDL, not vanilla Postgres; this schema doesn't attempt to anticipate that.
