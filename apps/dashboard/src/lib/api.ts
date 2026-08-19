@@ -102,6 +102,8 @@ export const api = {
     }),
   billingPortal: (returnUrl: string) =>
     request<{ url: string }>("/v1/billing/portal", { method: "POST", body: JSON.stringify({ returnUrl }) }),
+  connectMachine: (userCode: string) =>
+    request<{ approved: true; workspaceId: string }>("/v1/machines/connect", { method: "POST", body: JSON.stringify({ userCode }) }),
   auditExport: () =>
     request<{
       events: Array<{ eventId: string; workspaceId: string; type: string; server: string; tool: string; chainHash: string; ts: string }>;

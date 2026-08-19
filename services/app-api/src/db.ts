@@ -125,6 +125,21 @@ export function openDb(filePath: string): Database.Database {
       status TEXT NOT NULL DEFAULT 'active'
     );
 
+    -- Owned by services/ingest in normal operation (device-code lifecycle
+    -- start/poll); declared here too (IF NOT EXISTS, identical shape) so
+    -- app-api can approve a code directly against the shared physical DB
+    -- file from an authenticated Dashboard session (Part 6.2), the same
+    -- "both connect to the same Postgres instance" pattern used for
+    -- workspaces/machines/api_keys below.
+    CREATE TABLE IF NOT EXISTS device_codes (
+      device_code TEXT PRIMARY KEY,
+      user_code TEXT NOT NULL UNIQUE,
+      workspace_id TEXT,
+      status TEXT NOT NULL, -- pending | approved | denied
+      created_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL
+    );
+
     -- Owned by services/ingest in normal operation; declared here too
     -- (IF NOT EXISTS, identical shape) so app-api can read/join them
     -- regardless of which service starts first against the shared file.
@@ -347,6 +362,24 @@ export function revokeSession(db: Database.Database, sessionId: string): void {
 
 export function revokeAllSessionsForUser(db: Database.Database, userId: string): void {
   db.prepare("UPDATE sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL").run(new Date().toISOString(), userId);
+}
+
+// Production caller of the Part 6.2 device-authorization "approve" step:
+// an authenticated Dashboard session, not the CLI (which is still
+// anonymous at this point). Mirrors services/ingest/src/device-flow.ts's
+// approveDeviceCode() exactly (same table, same status/expiry checks) —
+// duplicated rather than imported since the two services intentionally
+// share no code, only the physical DB file (see the workspaces/machines
+// precedent above).
+export function approveDeviceCodeForWorkspace(db: Database.Database, userCode: string, workspaceId: string): boolean {
+  const row = db.prepare("SELECT * FROM device_codes WHERE user_code = ?").get(userCode) as
+    | { device_code: string; status: string; expires_at: string }
+    | undefined;
+  if (!row) return false;
+  if (row.status !== "pending") return false;
+  if (new Date(row.expires_at).getTime() < Date.now()) return false;
+  db.prepare("UPDATE device_codes SET status = 'approved', workspace_id = ? WHERE user_code = ?").run(workspaceId, userCode);
+  return true;
 }
 
 export function listWorkspacesForOrg(db: Database.Database, orgId: string): Array<{ id: string; orgId: string; name: string; createdAt: string }> {

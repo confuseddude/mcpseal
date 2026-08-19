@@ -161,6 +161,27 @@ None to the substance of Part 8 — the one addition (`mcplock policy-pull`) is 
 
 ---
 
+# Post-Milestone-6 Hardening — Morning Action Item #4 (2026-08-19)
+
+## Built
+- `services/app-api/src/db.ts`: `device_codes` table declared (`IF NOT EXISTS`, identical shape to `services/ingest`'s) plus `approveDeviceCodeForWorkspace()` — a duplicate (not imported) implementation of `services/ingest/src/device-flow.ts`'s `approveDeviceCode()`, operating on the same shared physical SQLite file. Kept the two services' intentional zero-code-sharing (only the DB file is shared, per the Milestone 3/4 precedent for workspaces/machines/api_keys).
+- `POST /v1/machines/connect` (`services/app-api/src/app.ts`): session-authenticated, admin/owner-only. Resolves `workspaceId` from the approving session's own org — either the org's default workspace or a client-supplied `workspaceId` that's verified to belong to that org (404, not 403, on a cross-org attempt — consistent with this codebase's existing no-existence-leak convention). Normalizes the user-entered code (trim + uppercase) since a human types it. This is the real production caller for the device-flow "approve" step that `services/ingest/src/app.ts`'s `POST /v1/auth/device/approve` was built for in Milestone 3 but never had a real caller until now.
+- Dashboard Settings page: a real "Connect a machine" form (code input + submit) wired to `api.connectMachine()`, with success/error state.
+
+## Verified
+- 8 new tests in `services/app-api/src/machine-connect.test.ts` (real temp-file SQLite, not `:memory:`, so a pending `device_codes` row can be seeded exactly as `startDeviceFlow()` would write it): owner/admin approves successfully and the row is actually flipped (not just a 200); code matching is case-insensitive; member (sub-admin) is denied 403; unauthenticated is 401; unknown code is 404; expired code is 404 (not approved); an explicit `workspaceId` belonging to a **different** org is rejected 404 with the row left untouched (no side effects on a rejected cross-org attempt); malformed body is 400.
+- Real, non-mocked end-to-end run: started real `ingest` + `app-api` dev servers pointed at the same fresh temp SQLite file (`MCPLOCK_INGEST_DB` / `MCPLOCK_CONTROL_PLANE_DB`), called the real `/v1/auth/device/start`, did a real `dev-login` to get a real session cookie, called the real `POST /v1/machines/connect` with the printed user code, then polled the real `/v1/auth/device/poll` — got back a real, freshly-issued API key token correctly scoped to the workspace `/v1/machines/connect` had resolved. Confirms `mcplock login` can now complete entirely through the Dashboard, no `MCPLOCK_DEV_AUTO_APPROVE_DEVICE` or raw API call needed. All temp state (DB file, cookie jar, spawned server processes) cleaned up afterward.
+- Full regression: 205 TS tests (was 197; +8 here) + 39 Python tests, all passing. Dashboard `tsc --noEmit` clean.
+
+## Executive Decisions
+- Chose "duplicate the approve logic against the shared DB file" over "app-api makes an HTTP call to ingest's `/v1/auth/device/approve`" — matches the existing architectural choice (Milestone 3/4 log) that the two services share only the physical DB file, never RPC each other, and keeps `/v1/auth/device/approve` itself unchanged (still real, still usable directly/by tests, just no longer the only path to approval).
+- Left `services/ingest`'s `/v1/auth/device/approve` endpoint and its "not gated by session auth, documented gap" comment as-is — it's no longer the production path (this new App API route is), but removing it would break existing ingest tests and the `MCPLOCK_DEV_AUTO_APPROVE_DEVICE` dev convenience for zero-dashboard local testing. Its comment should probably be revisited to say "internal/dev-mode caller only" in a future pass; not done in this session to keep the change scoped.
+
+## Production Wiring Required
+- None new — this closes a gap entirely with real (not mocked) logic; only the underlying Postgres/WorkOS items already listed in the original Morning Action Items still apply.
+
+---
+
 # Final Regression
 
 ## Tests Run

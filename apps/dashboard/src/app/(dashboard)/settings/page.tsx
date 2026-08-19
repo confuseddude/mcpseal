@@ -1,13 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { api, type Me, type ApiKeyRow, type Subscription } from "@/lib/api";
+import { useEffect, useState, type FormEvent } from "react";
+import { api, ApiError, type Me, type ApiKeyRow, type Subscription } from "@/lib/api";
 
 export default function SettingsPage() {
   const [members, setMembers] = useState<Me[] | null>(null);
   const [apiKeys, setApiKeys] = useState<ApiKeyRow[] | null>(null);
   const [apiKeysError, setApiKeysError] = useState<string | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [connectCode, setConnectCode] = useState("");
+  const [connectStatus, setConnectStatus] = useState<{ kind: "ok" | "error"; message: string } | null>(null);
+  const [connecting, setConnecting] = useState(false);
+
+  async function handleConnect(e: FormEvent) {
+    e.preventDefault();
+    if (!connectCode.trim()) return;
+    setConnecting(true);
+    setConnectStatus(null);
+    try {
+      await api.connectMachine(connectCode.trim());
+      setConnectStatus({ kind: "ok", message: "Approved — the waiting mcplock login on that machine will pick this up automatically." });
+      setConnectCode("");
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : "Could not connect that code.";
+      setConnectStatus({ kind: "error", message });
+    } finally {
+      setConnecting(false);
+    }
+  }
 
   function refreshMembers() {
     api.members().then((res) => setMembers(res.members));
@@ -27,6 +47,36 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-lg font-medium text-[var(--color-text)]">Settings</h1>
       </div>
+
+      <Section title="Connect a machine">
+        <p className="mb-3 text-sm text-[var(--color-text-dim)]">
+          Run <span className="font-data text-[var(--color-text)]">mcplock login</span> on a machine, then enter the
+          code it prints here to approve it into this workspace.
+        </p>
+        <form onSubmit={handleConnect} className="flex items-center gap-2">
+          <input
+            value={connectCode}
+            onChange={(e) => setConnectCode(e.target.value.toUpperCase())}
+            placeholder="ABCDEF"
+            maxLength={12}
+            className="w-40 rounded border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 font-data text-sm tracking-widest text-[var(--color-text)] uppercase placeholder:text-[var(--color-text-faint)]"
+          />
+          <button
+            type="submit"
+            disabled={connecting || !connectCode.trim()}
+            className="rounded-md bg-[var(--color-text)] px-3 py-1.5 text-xs font-medium text-[var(--color-bg)] disabled:opacity-50"
+          >
+            {connecting ? "Connecting…" : "Connect"}
+          </button>
+        </form>
+        {connectStatus && (
+          <p
+            className={`mt-2 text-sm ${connectStatus.kind === "ok" ? "text-[var(--color-ok)]" : "text-[var(--color-severity-high)]"}`}
+          >
+            {connectStatus.message}
+          </p>
+        )}
+      </Section>
 
       <Section title="Members">
         {members === null ? (

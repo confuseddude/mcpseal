@@ -20,6 +20,7 @@ import {
   findValidSession,
   revokeSession,
   listWorkspacesForOrg,
+  approveDeviceCodeForWorkspace,
   listMachinesForWorkspaces,
   listEventsForWorkspaces,
   listApiKeysForWorkspaces,
@@ -213,6 +214,39 @@ export function buildApp(dbPath: string): FastifyInstance {
     if (!ctx) return reply.status(401).send({ error: "not authenticated" });
     const workspaceIds = listWorkspacesForOrg(db, ctx.user.orgId).map((w) => w.id);
     return reply.send({ machines: listMachinesForWorkspaces(db, workspaceIds) });
+  });
+
+  // --- Connect a machine (Part 6.2's device-flow "approve" step, called
+  // for real by an authenticated Dashboard session rather than the
+  // dev-auto-approve env var — closes the gap flagged in
+  // NIGHT_SHIFT_LOG.md's Morning Action Items #4) ---
+  const connectMachineSchema = z.object({ userCode: z.string().min(1).max(32), workspaceId: z.string().uuid().optional() });
+  app.post("/v1/machines/connect", async (req, reply) => {
+    const ctx = await currentUser(req);
+    if (!ctx) return reply.status(401).send({ error: "not authenticated" });
+    if (!requireRole(ctx.user, "admin")) return reply.status(403).send({ error: "requires admin or owner" });
+
+    const parsed = connectMachineSchema.safeParse((req.body as any)?.json ?? req.body);
+    if (!parsed.success) return reply.status(400).send({ error: "malformed request" });
+
+    const orgWorkspaces = listWorkspacesForOrg(db, ctx.user.orgId);
+    if (orgWorkspaces.length === 0) return reply.status(404).send({ error: "org has no workspace" });
+
+    let workspaceId = parsed.data.workspaceId;
+    if (workspaceId) {
+      // Never trust a client-supplied workspaceId outright — it must
+      // belong to the approving session's own org, or this is a
+      // cross-org machine-provisioning vector.
+      if (!orgWorkspaces.some((w) => w.id === workspaceId)) {
+        return reply.status(404).send({ error: "workspace not found" });
+      }
+    } else {
+      workspaceId = orgWorkspaces[0].id;
+    }
+
+    const ok = approveDeviceCodeForWorkspace(db, parsed.data.userCode.trim().toUpperCase(), workspaceId);
+    if (!ok) return reply.status(404).send({ error: "unknown or expired code" });
+    return reply.send({ approved: true, workspaceId });
   });
 
   // --- Live Feed ---
