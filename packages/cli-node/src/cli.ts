@@ -1,7 +1,11 @@
 #!/usr/bin/env node
-// build-bible.md Part 3.2: the command surface. `init` (2.1) and `proxy`
-// (2.2) exist so far — the rest (scan, install, uninstall, approve, deny,
-// diff, login, status) come in later steps.
+// build-bible.md Part 3.2: the command surface. Track A ("wedge
+// completion"): every command's failure output now goes through
+// events.ts's classifyThrown()/describeDriftReason()/describePolicyOutcome()
+// so a developer gets diagnosis + consequence + remediation instead of a
+// raw exception message, without changing any underlying security
+// decision or the exact text of existing thrown errors (tests assert on
+// those substrings).
 import path from "node:path";
 import { readLockfile } from "@mcplock/cli-core";
 import { init } from "./init.js";
@@ -13,12 +17,31 @@ import { setToolStatus } from "./manage.js";
 import { diffDrifted, formatDiff } from "./diff.js";
 import { login, API_KEY_ACCOUNT } from "./login.js";
 import { shipEventsBestEffort } from "./ship-events.js";
-import { readConfig, isLoggedIn } from "./config.js";
+import { readConfig, isLoggedIn, clearConfig } from "./config.js";
 import { pullAndApplyPolicy } from "./policy-sync.js";
-import { getSecret } from "./keychain.js";
+import { getSecret, deleteSecret } from "./keychain.js";
+import { buildStatusReport, formatStatusReport } from "./status.js";
+import { runDoctor, formatDoctorReport } from "./doctor.js";
+import { classifyThrown, describeDriftReason, describePolicyOutcome, formatEventBlock } from "./events.js";
+
+const PRIVATE_KEY_ACCOUNT = "machine-private-key";
+
+// `--json` is accepted anywhere in the argument list (after the command)
+// for status/doctor/scan, per Track A's CI/scripting requirement. Every
+// other positional argument keeps its existing meaning and order.
+function extractJsonFlag(args: string[]): { json: boolean; rest: string[] } {
+  const json = args.includes("--json");
+  return { json, rest: args.filter((a) => a !== "--json") };
+}
+
+function printClassifiedError(err: unknown): void {
+  const classified = classifyThrown(err);
+  console.error(formatEventBlock(classified));
+}
 
 async function main(): Promise<void> {
-  const [, , command, ...rest] = process.argv;
+  const [, , command, ...rawRest] = process.argv;
+  const { json, rest } = extractJsonFlag(rawRest);
 
   switch (command) {
     case "init": {
@@ -46,7 +69,14 @@ async function main(): Promise<void> {
       // Fail closed (CLAUDE.md invariant 1): if the lockfile can't be read,
       // refuse to start rather than proxying traffic unchecked.
       const lockfilePath = path.join(process.cwd(), ".mcp-lock.json");
-      const lockfile = readLockfile(lockfilePath);
+      let lockfile;
+      try {
+        lockfile = readLockfile(lockfilePath);
+      } catch (err) {
+        printClassifiedError(err);
+        process.exitCode = 1;
+        return;
+      }
 
       const handle = runProxy({
         server: { command: command_, args: serverArgs },
@@ -56,11 +86,18 @@ async function main(): Promise<void> {
         output: process.stdout,
         onDecision: (toolName, result) => {
           if (result.decision !== "block") return;
-          console.error(`mcplock: blocked tool "${toolName}" (${result.reason})`);
-          if (result.reason === "blocked_drift") {
-            console.error(`  old description: ${result.oldDescription}`);
-            console.error(`  new description: ${result.newDescription}`);
-          }
+          const desc = describeDriftReason(result.reason);
+          console.error(
+            formatEventBlock(desc, {
+              server: serverName,
+              tool: toolName,
+              expected: result.oldHash,
+              observed: result.newHash,
+              ...(result.reason === "blocked_drift"
+                ? { "old description": result.oldDescription, "new description": result.newDescription }
+                : {}),
+            })
+          );
           appendEvent({
             type: result.reason,
             server: serverName,
@@ -97,9 +134,30 @@ async function main(): Promise<void> {
       const projectDir = rest[0] ?? process.cwd();
       const decisions = await scan(projectDir);
       let anyBlocked = false;
-      for (const d of decisions) {
-        console.log(`${d.result.decision === "block" ? "BLOCK" : "OK   "} ${d.serverName}/${d.toolName} (${d.result.reason})`);
-        if (d.result.decision === "block") anyBlocked = true;
+      if (json) {
+        const rows = decisions.map((d) => {
+          const desc = describeDriftReason(d.result.reason);
+          if (d.result.decision === "block") anyBlocked = true;
+          return {
+            server: d.serverName,
+            tool: d.toolName,
+            decision: d.result.decision,
+            reason: d.result.reason,
+            code: desc.code,
+            severity: desc.severity,
+          };
+        });
+        console.log(JSON.stringify({ decisions: rows, blocked: anyBlocked }, null, 2));
+      } else {
+        for (const d of decisions) {
+          const desc = describeDriftReason(d.result.reason);
+          const label = d.result.decision === "block" ? "BLOCK" : "OK   ";
+          console.log(`${label} ${d.serverName}/${d.toolName} (${d.result.reason})`);
+          if (d.result.decision === "block") {
+            anyBlocked = true;
+            if (desc.remediation[0]) console.log(`      next: ${desc.remediation[0]}`);
+          }
+        }
       }
       // CI-friendly (Part 3.2): non-zero exit specifically signals drift/blocks.
       process.exitCode = anyBlocked ? 1 : 0;
@@ -115,7 +173,13 @@ async function main(): Promise<void> {
       }
       const status = command === "approve" ? "approved" : "denied";
       const result = await setToolStatus(process.cwd(), serverName, toolName, status);
-      console.log(`mcplock ${command}: ${result.serverName}/${result.toolName} is now "${result.status}" (${result.hash})`);
+      // Approve/deny only ever change the LOCAL lockfile (CLAUDE.md: never
+      // hardcode plan/policy logic client-side) — say so explicitly so this
+      // is never confused with organization-wide policy, which only an
+      // admin can push via the Control Plane and `mcplock policy-pull`.
+      console.log(
+        `mcplock ${command}: ${result.serverName}/${result.toolName} is now "${result.status}" (${result.hash}) — local lockfile only, not organization policy`
+      );
       return;
     }
     case "diff": {
@@ -127,26 +191,32 @@ async function main(): Promise<void> {
       }
       for (const d of diffs) {
         console.log(formatDiff(d));
+        console.log("  next:");
+        console.log(`    mcplock approve ${d.serverName} ${d.toolName}   # only after reviewing the change above`);
+        console.log(`    mcplock deny ${d.serverName} ${d.toolName}`);
+        console.log("");
       }
       return;
     }
     case "status": {
-      const events = readEvents();
-      const blocks = recentBlocks(events, 10);
-      const config = readConfig();
-      if (config?.workspaceId) {
-        console.log(`mcplock status: connected to workspace ${config.workspaceId} (machine ${config.machineId})`);
+      const report = buildStatusReport(rest[0] ?? process.cwd());
+      if (json) {
+        console.log(JSON.stringify(report, null, 2));
       } else {
-        console.log("mcplock status: not logged in — running fully local, no workspace connection.");
+        console.log(formatStatusReport(report));
       }
-      if (events.length === 0) {
-        console.log("mcplock status: no events recorded yet on this machine.");
-        return;
+      return;
+    }
+    case "doctor": {
+      const report = await runDoctor(rest[0] ?? process.cwd());
+      if (json) {
+        console.log(JSON.stringify(report, null, 2));
+      } else {
+        console.log(formatDoctorReport(report));
       }
-      console.log(`mcplock status: ${events.length} event(s) recorded, ${blocks.length} recent block(s):`);
-      for (const b of blocks) {
-        console.log(`  [${b.ts}] ${b.type} — ${b.server}/${b.tool}`);
-      }
+      // Only local-health failures affect the exit code — Control Plane
+      // unreachability is never a doctor failure (offline-first: Part 13).
+      process.exitCode = report.allLocalOk ? 0 : 1;
       return;
     }
     case "login": {
@@ -163,9 +233,20 @@ async function main(): Promise<void> {
         });
         console.log(`mcplock login: connected to workspace ${result.workspaceId} (machine ${result.machineId})`);
       } catch (err) {
-        console.error(`mcplock login: failed — ${(err as Error).message}`);
+        printClassifiedError(err);
         process.exitCode = 1;
       }
+      return;
+    }
+    case "logout": {
+      // Reverses login: clears the non-secret config AND both keychain
+      // secrets (the workspace API key and the machine's ed25519 private
+      // key). A fresh `mcplock login` afterward creates a brand-new
+      // machine identity rather than reusing a possibly-compromised one.
+      clearConfig();
+      deleteSecret(API_KEY_ACCOUNT);
+      deleteSecret(PRIVATE_KEY_ACCOUNT);
+      console.log("mcplock logout: cleared workspace connection and local credentials. Local enforcement is unaffected.");
       return;
     }
     case "policy-pull": {
@@ -175,41 +256,28 @@ async function main(): Promise<void> {
       // org key AND the version is newer than what's already applied.
       const apiKeyToken = getSecret(API_KEY_ACCOUNT);
       const result = await pullAndApplyPolicy({ apiKeyToken: apiKeyToken ?? undefined });
-      switch (result.outcome) {
-        case "applied":
-          console.log(`mcplock policy-pull: applied signed policy version ${result.version}`);
-          return;
-        case "no-newer-version":
-          console.log(`mcplock policy-pull: already on the latest policy (version ${result.currentVersion})`);
-          return;
-        case "skipped-not-logged-in":
-          console.log("mcplock policy-pull: not logged in — run `mcplock login` first");
-          return;
-        case "skipped-no-pinned-key":
-          console.error("mcplock policy-pull: no org signing key pinned — refusing to trust any policy. Run `mcplock login` again.");
-          process.exitCode = 1;
-          return;
-        case "skipped-no-policy-published":
-          console.log("mcplock policy-pull: no policy has been published for this workspace yet");
-          return;
-        case "rejected-invalid-signature":
-          console.error("mcplock policy-pull: REJECTED — signature verification failed. Existing lockfile left unchanged.");
-          process.exitCode = 1;
-          return;
-        case "rejected-malformed-response":
-          console.error("mcplock policy-pull: REJECTED — malformed response from server. Existing lockfile left unchanged.");
-          process.exitCode = 1;
-          return;
-        case "rejected-network-error":
-          console.error(`mcplock policy-pull: could not reach the server (${result.message}). Existing lockfile left unchanged.`);
-          process.exitCode = 1;
-          return;
+      const desc = describePolicyOutcome(result.outcome);
+      const isRejection = result.outcome.startsWith("rejected") || result.outcome === "skipped-no-pinned-key";
+      const extra =
+        result.outcome === "applied"
+          ? { version: String(result.version) }
+          : result.outcome === "no-newer-version"
+            ? { "current version": String(result.currentVersion) }
+            : result.outcome === "rejected-network-error"
+              ? { detail: result.message }
+              : undefined;
+      const line = formatEventBlock(desc, extra);
+      if (isRejection) {
+        console.error(line);
+        process.exitCode = 1;
+      } else {
+        console.log(line);
       }
       return;
     }
     default: {
       console.error(
-        `Unknown or missing command: ${command ?? "(none)"}\nUsage: mcplock init|install|uninstall|status|scan|diff|login|policy-pull [projectDir] | mcplock proxy <serverName> <command> [args...] | mcplock approve|deny <serverName> <toolName>`
+        `Unknown or missing command: ${command ?? "(none)"}\nUsage: mcplock init|install|uninstall|status|doctor|scan|diff|login|logout|policy-pull [projectDir] [--json] | mcplock proxy <serverName> <command> [args...] | mcplock approve|deny <serverName> <toolName>`
       );
       process.exitCode = 1;
     }
@@ -217,6 +285,6 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  console.error(`mcplock: fatal error: ${(err as Error).message}`);
+  printClassifiedError(err);
   process.exitCode = 1;
 });
