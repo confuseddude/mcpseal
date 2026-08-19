@@ -100,6 +100,16 @@ export function runProxy(options: ProxyOptions): ProxyHandle {
     });
   };
   input.on("data", onClientData);
+  // Track A: propagate the client disconnecting (its stdin ending) to the
+  // spawned child. Without this, a client that exits or closes its pipe
+  // leaves the child running as an orphan indefinitely, and `closed`
+  // (which resolves on the child's own exit) never resolves — hanging
+  // `mcplock proxy` itself. `.end()` is safe to call even if the child has
+  // already exited on its own.
+  const onClientEnd = () => {
+    if (!child.stdin.destroyed) child.stdin.end();
+  };
+  input.on("end", onClientEnd);
 
   // child -> client: intercept only lines whose parsed result carries a
   // `tools` array; everything else forwarded as the exact original bytes.
@@ -140,6 +150,7 @@ export function runProxy(options: ProxyOptions): ProxyHandle {
 
   const stop = () => {
     input.off("data", onClientData);
+    input.off("end", onClientEnd);
     child.stdout.off("data", onChildData);
     killProcessTree(child);
   };

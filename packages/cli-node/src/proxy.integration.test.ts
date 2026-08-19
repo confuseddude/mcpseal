@@ -160,4 +160,26 @@ describe("runProxy — real child process, real stdio piping (Part 3.3)", () => 
       result: { echoed: { name: "safe_tool", arguments: { x: 1 } } },
     });
   }, 10_000);
+
+  // Track A finding: the client disconnecting (its stdin/stdout pipe
+  // closing — e.g. the real MCP client process exiting) must propagate to
+  // the spawned child, or the child leaks as an orphan and `handle.closed`
+  // never resolves, hanging the whole `mcplock proxy` process forever.
+  // This is process-lifecycle plumbing, not the trust/filtering logic —
+  // fixed in runProxy() by closing child.stdin when `input` ends.
+  it("ending the client's input stream (disconnect) causes the child to exit and handle.closed to resolve", async () => {
+    const clientToProxy = new PassThrough();
+    const proxyToClient = new PassThrough();
+
+    handle = runProxy({
+      server: { command: "node", args: [stubServerPath] },
+      serverName: "stub",
+      lockfile: lockfile(),
+      input: clientToProxy,
+      output: proxyToClient,
+    });
+
+    clientToProxy.end(); // simulates the real client disconnecting
+    await handle.closed; // must resolve, not hang — the test's own 10s timeout is the real assertion
+  }, 10_000);
 });
