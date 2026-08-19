@@ -241,8 +241,14 @@ None — this fills the Part 3.1 "ship two thin distributions" gap that was expl
 
 ## Production Wiring Required
 - `login`/`ship-events`/`policy-sync` for the Python CLI (Milestones 3/6 parity) — the largest remaining piece of the "ship two thin distributions" gap; scoped out of this pass, see above.
-- `uvx mcplock` packaging/publish verification (mirroring cli-node's 2.7: a real `uvx` install-and-run smoke test from a built wheel/sdist, not just `pip install -e .`) — not attempted this session.
 - PyPI publish itself remains out of scope (irreversible/public action), same boundary the TS session already drew for npm.
+
+## Update: packaging verification (2026-08-19, same session)
+- Added `[project.scripts] mcplock = "mcplock.cli:entrypoint"` (already present from the parity work above) and confirmed it round-trips through a **real build**, not just the editable install used for the parity testing above: `python -m build` (installed via `pip install --user build`) produced a real sdist and wheel; inspected the wheel's contents directly (`python -m zipfile -l`) and confirmed every module plus `entry_points.txt` (the console-script registration) is present.
+- Installed that wheel into a **fresh, isolated venv with zero access to the monorepo** (mirrors cli-node's 2.7 rigor: "installed the tarball in a directory with zero access to the monorepo"), copied only the standalone `mutable_stub_server.py` fixture into that isolated directory (not imported from the repo — just a plain script, standing in for "some real external MCP server"), and ran the installed `mcplock.exe init`/`scan` from that venv's `Scripts/` directory directly. Worked correctly end-to-end with zero monorepo dependency.
+- Updated the root `README.md`: both distributions now documented with parallel `npx`/`uvx` quickstarts and from-source instructions (previously only the TS CLI had a command surface to document).
+- Deliberately did NOT run `python -m build`'s sibling `twine upload`/`hatch publish` or otherwise touch PyPI — irreversible/public, same boundary as the TS session's `npm publish` decision in Milestone 2.7. No license was chosen for the Python package (matches the TS package's `"UNLICENSED"` placeholder in spirit — that decision belongs to the user, not invented here); `pyproject.toml` simply has no `license` field yet rather than a guessed one, since PyPI/hatchling have no equivalent to npm's `"UNLICENSED"` publish-blocking convention to lean on as a safety net.
+- Build artifacts (`dist/`) were `rm -rf`'d after verification — already covered by the repo's root `.gitignore`, confirmed nothing leaked into `git status`.
 
 ---
 

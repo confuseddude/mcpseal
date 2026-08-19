@@ -14,7 +14,7 @@ An MCP tool-integrity CLI: pins the hash of every approved MCP tool definition a
 
 ## Status
 
-This is pre-release, mid-build software (Milestone 2 of the build plan in `Tasks.md`). It is **not yet published to npm** — the quickstart below describes how it will work once published, plus how to run it locally today. Only the TypeScript CLI (`npx mcplock`) exists; the Python CLI (`uvx mcplock`) has the core hashing/drift library but no command-line interface yet.
+This is pre-release, mid-build software. It is **not yet published to npm or PyPI** — the quickstart below describes how it will work once published, plus how to run it locally today. Both distributions now have a full free-tier command-line interface (`npx mcplock` / `uvx mcplock`): init/proxy/install/uninstall/scan/approve/deny/diff/status. Neither distribution has `login`/hosted-workspace support yet (see the Privacy section above — that's still a later milestone for both languages).
 
 ## Quickstart (once published)
 
@@ -23,12 +23,20 @@ npx mcplock@latest init
 npx mcplock@latest install
 ```
 
+or, in Python:
+
+```
+uvx mcplock init
+uvx mcplock install
+```
+
 That's it — `init` discovers your MCP servers from your client's config and approves everything currently there (trust-on-first-use), and `install` puts `mcplock` in the path between your client and your real servers. Nothing to configure, no account needed.
 
-To undo: `npx mcplock@latest uninstall` restores your original client config exactly.
+To undo: `npx mcplock@latest uninstall` (or `uvx mcplock uninstall`) restores your original client config exactly.
 
 ## Running from source (today, pre-publish)
 
+TypeScript:
 ```
 git clone <this repo>
 cd mcp-shield
@@ -36,6 +44,15 @@ pnpm install
 pnpm --filter mcplock build
 node packages/cli-node/dist/cli.js init [projectDir]
 node packages/cli-node/dist/cli.js install [projectDir]
+```
+
+Python:
+```
+git clone <this repo>
+cd mcp-shield/packages/cli-python
+pip install -e .
+mcplock init [projectDir]
+mcplock install [projectDir]
 ```
 
 Currently supports Claude Code's project-scope config (`.mcp.json` with an `mcpServers` key at your project root).
