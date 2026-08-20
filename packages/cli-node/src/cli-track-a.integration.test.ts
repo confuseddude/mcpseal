@@ -139,3 +139,27 @@ describe("unrecognized error paths get real remediation text, not a bare stack t
     expect(res.stderr).toContain("Local enforcement is completely unaffected");
   }, 15_000);
 });
+
+describe("mcpseal help / --help / -h", () => {
+  // Real gap found via manual testing right after the first public
+  // publish: `--help` (the single most instinctive thing any developer
+  // types first) used to fall through to the "unknown command" default
+  // case, exiting 1 and telling the user they'd done something wrong.
+  for (const flag of ["help", "--help", "-h"]) {
+    it(`\`mcpseal ${flag}\` shows real command help and exits 0, not an "unknown command" error`, () => {
+      const res = run([flag]);
+      expect(res.status).toBe(0);
+      expect(res.stdout).not.toContain("Unknown command");
+      expect(res.stdout).toContain("mcpseal <command>");
+      expect(res.stdout).toContain("doctor");
+      expect(res.stdout).toContain("login");
+    });
+  }
+
+  it("an actually-unknown command points at `mcpseal help` instead of dumping the full usage string inline", () => {
+    const res = run(["definitely-not-a-real-command"]);
+    expect(res.status).toBe(1);
+    expect(res.stderr).toContain("Unknown command");
+    expect(res.stderr).toContain("mcpseal help");
+  });
+});

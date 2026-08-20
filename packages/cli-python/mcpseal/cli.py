@@ -31,13 +31,46 @@ from mcpseal.scan import scan as scan_cmd
 from mcpseal.ship_events import ship_events_best_effort
 from mcpseal.status import build_status_report, format_status_report
 
-USAGE = (
-    "Unknown or missing command: {command}\n"
-    "Usage: mcpseal init|install|uninstall|status|scan|diff|login|logout|policy-pull [projectDir] [--json] | "
-    "mcpseal doctor [projectDir] [--json] [--check-updates] | "
-    "mcpseal proxy <serverName> <command> [args...] | "
-    "mcpseal approve|deny <serverName> <toolName>"
-)
+USAGE = "Unknown command: {command}\nRun `mcpseal help` to see every command."
+
+# Real gap found via manual testing right after the first public publish:
+# `mcpseal --help` (the single most instinctive thing any developer types
+# first) fell through to the "unknown command" path, telling a brand new
+# user they'd done something wrong. `help` is its own command (exit 0,
+# not an error) rather than folded into that error path. Mirrors
+# packages/cli-node/src/cli.ts's HELP_TEXT.
+HELP_TEXT = """mcpseal — pins MCP tool definitions and blocks the instant they drift ("rug pulls").
+
+USAGE
+  mcpseal <command> [projectDir] [--json]
+
+SETUP
+  init                          Discover MCP servers, hash every tool, write .mcp-lock.json
+  install                       Route your client's servers through the proxy
+  uninstall                     Restore your original client config exactly
+
+CHECKING
+  scan [--json]                 Re-check all tools now; non-zero exit on drift (CI-friendly)
+  diff                          Show the old-vs-new description for any drifted tool
+  status [--json]                LOCAL HEALTH + CONTROL PLANE summary — always works offline
+  doctor [--json] [--check-updates]   Deeper diagnostics; a fix command for every failed check
+
+DECIDING
+  approve <server> <tool>       Trust a tool's current live definition (local lockfile only)
+  deny <server> <tool>          Block a tool even if its hash still matches
+
+OPTIONAL WORKSPACE (nothing above needs this)
+  login                         Connect this machine to a hosted workspace
+  logout                        Disconnect and clear local credentials
+  policy-pull                   Fetch and verify a signed org policy, if connected
+
+  proxy <server> <cmd> [args...]   The actual enforcement engine — you don't run this by hand,
+                                     `install` wires your client to launch it automatically
+
+  help, --help, -h              Show this message
+
+Nothing above ever leaves your machine unless you run `login`. Full docs: the repo this
+package was built from (README.md, docs/DEVELOPER_QUICKSTART.md)."""
 
 
 def _extract_flags(args: list[str]) -> tuple[bool, bool, list[str]]:
@@ -278,6 +311,10 @@ def main(argv: list[str] | None = None) -> int:
             print(line, file=sys.stderr)
             return 1
         print(line)
+        return 0
+
+    if command in ("help", "--help", "-h"):
+        print(HELP_TEXT)
         return 0
 
     print(USAGE.format(command=command or "(none)"), file=sys.stderr)

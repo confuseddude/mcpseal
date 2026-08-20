@@ -26,6 +26,45 @@ import { classifyThrown, describeDriftReason, describePolicyOutcome, formatEvent
 
 const PRIVATE_KEY_ACCOUNT = "machine-private-key";
 
+// Real gap found via manual testing right after the first public
+// publish: `mcpseal --help` (the single most instinctive thing any
+// developer types first) fell through to the "unknown command" default
+// case, telling a brand new user they'd done something wrong. `help` is
+// its own command (exit 0, not an error) rather than folded into the
+// default case's error path.
+const HELP_TEXT = `mcpseal — pins MCP tool definitions and blocks the instant they drift ("rug pulls").
+
+USAGE
+  mcpseal <command> [projectDir] [--json]
+
+SETUP
+  init                          Discover MCP servers, hash every tool, write .mcp-lock.json
+  install                       Route your client's servers through the proxy
+  uninstall                     Restore your original client config exactly
+
+CHECKING
+  scan [--json]                 Re-check all tools now; non-zero exit on drift (CI-friendly)
+  diff                          Show the old-vs-new description for any drifted tool
+  status [--json]                LOCAL HEALTH + CONTROL PLANE summary — always works offline
+  doctor [--json] [--check-updates]   Deeper diagnostics; a fix command for every failed check
+
+DECIDING
+  approve <server> <tool>       Trust a tool's current live definition (local lockfile only)
+  deny <server> <tool>          Block a tool even if its hash still matches
+
+OPTIONAL WORKSPACE (nothing above needs this)
+  login                         Connect this machine to a hosted workspace
+  logout                        Disconnect and clear local credentials
+  policy-pull                   Fetch and verify a signed org policy, if connected
+
+  proxy <server> <cmd> [args...]   The actual enforcement engine — you don't run this by hand,
+                                     \`install\` wires your client to launch it automatically
+
+  help, --help, -h              Show this message
+
+Nothing above ever leaves your machine unless you run \`login\`. Full docs: the repo this
+package was built from (README.md, docs/DEVELOPER_QUICKSTART.md).`;
+
 // `--json` is accepted anywhere in the argument list (after the command)
 // for status/doctor/scan, per Track A's CI/scripting requirement. Every
 // other positional argument keeps its existing meaning and order.
@@ -285,9 +324,15 @@ async function main(): Promise<void> {
       }
       return;
     }
+    case "help":
+    case "--help":
+    case "-h": {
+      console.log(HELP_TEXT);
+      return;
+    }
     default: {
       console.error(
-        `Unknown or missing command: ${command ?? "(none)"}\nUsage: mcpseal init|install|uninstall|status|scan|diff|login|logout|policy-pull [projectDir] [--json] | mcpseal doctor [projectDir] [--json] [--check-updates] | mcpseal proxy <serverName> <command> [args...] | mcpseal approve|deny <serverName> <toolName>`
+        `Unknown command: ${command ?? "(none)"}\nRun \`mcpseal help\` to see every command.`
       );
       process.exitCode = 1;
     }

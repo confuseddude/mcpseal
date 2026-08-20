@@ -197,3 +197,26 @@ def test_login_against_unreachable_control_plane_shows_friendly_message_not_unkn
     assert "AUTH_SERVER_UNREACHABLE" in err
     assert "UNKNOWN_ERROR" not in err
     assert "Local enforcement is completely unaffected" in err
+
+
+@pytest.mark.parametrize("flag", ["help", "--help", "-h"])
+def test_help_shows_real_command_list_and_exits_0(flag, capsys):
+    # Real gap found via manual testing right after the first public
+    # publish: `--help` (the single most instinctive thing any developer
+    # types first) used to fall through to the "unknown command" path,
+    # exiting 1 and telling the user they'd done something wrong.
+    code = main([flag])
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "Unknown command" not in out
+    assert "mcpseal <command>" in out
+    assert "doctor" in out
+    assert "login" in out
+
+
+def test_unknown_command_points_at_mcpseal_help(capsys):
+    code = main(["definitely-not-a-real-command"])
+    err = capsys.readouterr().err
+    assert code == 1
+    assert "Unknown command" in err
+    assert "mcpseal help" in err
