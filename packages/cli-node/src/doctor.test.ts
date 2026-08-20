@@ -2,7 +2,7 @@
 // Plane unreachability must never fail `allLocalOk`, and local checks
 // must never depend on network availability (offline-first, Part 13).
 import { describe, it, expect, afterEach } from "vitest";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -90,6 +90,74 @@ describe("runDoctor — local checks", () => {
     const report = await runDoctor(dir, { ...isolatedOpts(dir), fetchImpl: okFetch });
     const cpCheck = report.checks.find((c) => c.category === "control-plane");
     expect(cpCheck?.ok).toBe(true);
+  });
+});
+
+describe("runDoctor — opt-in update check (--check-updates)", () => {
+  it("makes ZERO network calls when checkUpdates is not passed, even though other options are set", async () => {
+    const dir = tmpProject();
+    const fetchImpl = (() => {
+      throw new Error("fetch must never be called without --check-updates");
+    }) as unknown as typeof fetch;
+    // No network-touching Control Plane config either, so the ONLY way
+    // this fetchImpl could be invoked is the update check — proving the
+    // product's privacy promise holds for plain `doctor`.
+    await runDoctor(dir, { ...isolatedOpts(dir), fetchImpl });
+  });
+
+  it("reports no CLI-version check at all when checkUpdates is false/omitted", async () => {
+    const dir = tmpProject();
+    const report = await runDoctor(dir, isolatedOpts(dir));
+    expect(report.checks.some((c) => c.category === "update")).toBe(false);
+  });
+
+  it("reports up to date when the registry returns the same version installed", async () => {
+    const dir = tmpProject();
+    const ownVersion = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf-8")).version;
+    const fetchImpl = (async () => ({ ok: true, status: 200, json: async () => ({ version: ownVersion }) })) as unknown as typeof fetch;
+    const report = await runDoctor(dir, { ...isolatedOpts(dir), fetchImpl, checkUpdates: true });
+    const check = report.checks.find((c) => c.category === "update");
+    expect(check?.ok).toBe(true);
+    expect(check?.detail).toContain("latest");
+  });
+
+  it("flags an outdated version with an upgrade remediation, without affecting allLocalOk", async () => {
+    const dir = tmpProject();
+    writeFileSync(path.join(dir, ".mcp.json"), JSON.stringify({ mcpServers: { stub: { command: "node", args: [stubServerPath] } } }));
+    await init({ projectDir: dir });
+    writeFileSync(path.join(dir, ".mcp.json.mcpseal-backup"), "{}");
+
+    const fetchImpl = (async () => ({ ok: true, status: 200, json: async () => ({ version: "999.0.0" }) })) as unknown as typeof fetch;
+    const report = await runDoctor(dir, { ...isolatedOpts(dir), fetchImpl, checkUpdates: true });
+    const check = report.checks.find((c) => c.category === "update");
+    expect(check?.ok).toBe(false);
+    expect(check?.detail).toContain("999.0.0");
+    expect(check?.remediation?.[0]).toContain("npm install -g mcpseal@latest");
+    // Being outdated is informational, not a local-health failure — local
+    // health here is otherwise genuinely healthy (lockfile + proxy set up).
+    expect(report.allLocalOk).toBe(true);
+  }, 15_000);
+
+  it("degrades gracefully (does not throw, does not fail the command) when npm is unreachable", async () => {
+    const dir = tmpProject();
+    const fetchImpl = (async () => {
+      throw new Error("network down");
+    }) as unknown as typeof fetch;
+    const report = await runDoctor(dir, { ...isolatedOpts(dir), fetchImpl, checkUpdates: true });
+    const check = report.checks.find((c) => c.category === "update");
+    expect(check?.ok).toBe(true); // a failed check-for-updates is not itself a failure
+    expect(check?.detail).toContain("could not reach npm");
+  });
+
+  it("hits npm's public registry, not any mcpseal-owned endpoint", async () => {
+    const dir = tmpProject();
+    let calledUrl: string | undefined;
+    const fetchImpl = (async (url: string) => {
+      calledUrl = url;
+      return { ok: true, status: 200, json: async () => ({ version: "0.1.0" }) };
+    }) as unknown as typeof fetch;
+    await runDoctor(dir, { ...isolatedOpts(dir), fetchImpl, checkUpdates: true });
+    expect(calledUrl).toBe("https://registry.npmjs.org/mcpseal/latest");
   });
 });
 

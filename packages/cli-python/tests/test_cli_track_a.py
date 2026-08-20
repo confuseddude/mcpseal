@@ -4,6 +4,7 @@
 # script calls (mcpseal.cli:entrypoint just wraps main() with sys.exit).
 import json
 import os
+import subprocess
 import sys
 
 import pytest
@@ -106,3 +107,71 @@ def test_approve_on_unconfigured_server_shows_remediation(project, capsys):
     assert code == 1
     assert "SERVER_NOT_CONFIGURED" in err
     assert "Traceback" not in err
+
+
+def test_status_and_doctor_honor_an_explicit_project_dir_not_just_cwd(tmp_path_factory, capsys):
+    # Regression: status/doctor previously always used os.getcwd(),
+    # silently ignoring the positional [projectDir] argument every other
+    # command respects. Deliberately does NOT chdir here (unlike the
+    # `project` fixture) so this can't pass by accident.
+    other_cwd = tmp_path_factory.mktemp("elsewhere")
+    real_project = tmp_path_factory.mktemp("real-project")
+    (real_project / ".mcp.json").write_text(json.dumps({"mcpServers": {"stub": {"command": PY, "args": [STUB_SERVER]}}}), encoding="utf-8")
+    main(["init", str(real_project)])
+    capsys.readouterr()
+    (real_project / ".mcp.json.mcpseal-backup").write_text("{}", encoding="utf-8")
+
+    os.chdir(other_cwd)
+    try:
+        status_code = main(["status", str(real_project), "--json"])
+        status_out = json.loads(capsys.readouterr().out)
+        assert status_code == 0
+        assert status_out["local"]["lockfilePresent"] is True
+
+        doctor_code = main(["doctor", str(real_project)])
+        doctor_out = capsys.readouterr().out
+        assert doctor_code == 0
+        assert "healthy" in doctor_out
+    finally:
+        os.chdir(str(real_project.parent))
+
+
+def test_doctor_check_updates_flag_makes_a_real_pypi_call_and_plain_doctor_does_not(project, capsys):
+    # Real, non-mocked network behavior: plain `doctor` must show no
+    # "update" line at all; `--check-updates` must actually reach PyPI
+    # (mcpseal isn't published yet, so this legitimately gets a 404 --
+    # the point is it tries, and degrades gracefully either way).
+    main(["doctor", project])
+    plain_out = capsys.readouterr().out
+    assert "CLI version" not in plain_out
+
+    code = main(["doctor", project, "--check-updates"])
+    out = capsys.readouterr().out
+    assert code in (0, 1)
+    assert "CLI version" in out
+
+
+def test_entrypoint_survives_a_legacy_non_utf8_console(project):
+    # Real bug found via an actual installed-binary run on Windows:
+    # doctor's formatter uses ✔/⚠ (shipped since Track A), and Python's
+    # stdout defaults to the console's legacy codepage (cp1252 on many
+    # Windows setups), which can't encode them -- printing crashed with
+    # UnicodeEncodeError instead of ever showing the report, and got
+    # silently misreported as a generic UNKNOWN_ERROR by the top-level
+    # error boundary. `main()` called directly (as every other test in
+    # this file does) can't catch this -- pytest's capsys replaces
+    # sys.stdout with its own object, bypassing real console encoding
+    # entirely. Only a real subprocess through the actual entrypoint(),
+    # with the legacy encoding forced, reproduces it.
+    package_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # packages/cli-python
+    result = subprocess.run(
+        [sys.executable, "-m", "mcpseal.cli", "doctor", project],
+        cwd=package_root,  # so `mcpseal` resolves via `python -m`'s cwd-on-sys.path, without needing it pip-installed
+        capture_output=True,
+        text=True,
+        encoding="cp1252",
+        env={**os.environ, "PYTHONIOENCODING": "", "PYTHONUTF8": "0"},
+    )
+    assert "UnicodeEncodeError" not in result.stderr
+    assert "UNKNOWN_ERROR" not in result.stdout
+    assert "MCPSEAL DOCTOR" in result.stdout

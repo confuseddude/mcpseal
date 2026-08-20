@@ -33,14 +33,18 @@ from mcpseal.status import build_status_report, format_status_report
 
 USAGE = (
     "Unknown or missing command: {command}\n"
-    "Usage: mcpseal init|install|uninstall|status|doctor|scan|diff|login|logout|policy-pull [projectDir] [--json] | "
+    "Usage: mcpseal init|install|uninstall|status|scan|diff|login|logout|policy-pull [projectDir] [--json] | "
+    "mcpseal doctor [projectDir] [--json] [--check-updates] | "
     "mcpseal proxy <serverName> <command> [args...] | "
     "mcpseal approve|deny <serverName> <toolName>"
 )
 
 
-def _extract_json_flag(args: list[str]) -> tuple[bool, list[str]]:
-    return "--json" in args, [a for a in args if a != "--json"]
+def _extract_flags(args: list[str]) -> tuple[bool, bool, list[str]]:
+    json_flag = "--json" in args
+    check_updates = "--check-updates" in args
+    rest = [a for a in args if a not in ("--json", "--check-updates")]
+    return json_flag, check_updates, rest
 
 
 def _print_classified(err: BaseException, file=None) -> None:
@@ -55,7 +59,7 @@ def _print_classified(err: BaseException, file=None) -> None:
 def main(argv: list[str] | None = None) -> int:
     raw_args = argv if argv is not None else sys.argv[1:]
     command = raw_args[0] if raw_args else None
-    json_flag, rest = _extract_json_flag(raw_args[1:])
+    json_flag, check_updates, rest = _extract_flags(raw_args[1:])
 
     if command == "init":
         project_dir = rest[0] if rest else os.getcwd()
@@ -202,7 +206,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if command == "status":
-        report = build_status_report(os.getcwd())
+        project_dir = rest[0] if rest else os.getcwd()
+        report = build_status_report(project_dir)
         if json_flag:
             print(json.dumps(_status_to_dict(report), indent=2))
         else:
@@ -210,7 +215,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if command == "doctor":
-        report = run_doctor(os.getcwd())
+        project_dir = rest[0] if rest else os.getcwd()
+        report = run_doctor(project_dir, check_updates=check_updates)
         if json_flag:
             print(json.dumps(_doctor_to_dict(report), indent=2))
         else:
@@ -307,6 +313,19 @@ def _doctor_to_dict(report) -> dict:
 
 
 def entrypoint() -> None:
+    # Real bug found via an actual installed-binary run on Windows: doctor's
+    # formatter uses unicode marks (✔/⚠, already shipped since Track A), and
+    # Python's stdout on a legacy Windows console defaults to cp1252, which
+    # can't encode them -- printing crashed with UnicodeEncodeError instead
+    # of showing the report at all. Only affects the real console_scripts
+    # entry point, not `main()` called directly (as the test suite does via
+    # pytest's capsys, which never touches real console encoding) -- fixed
+    # here, not in main(), so it doesn't change test behavior.
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass  # stream doesn't support reconfigure (e.g. already closed/redirected) -- best-effort only
     try:
         sys.exit(main())
     except Exception as err:  # noqa: BLE001 — top-level CLI error boundary

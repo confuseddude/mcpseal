@@ -29,9 +29,19 @@ const PRIVATE_KEY_ACCOUNT = "machine-private-key";
 // `--json` is accepted anywhere in the argument list (after the command)
 // for status/doctor/scan, per Track A's CI/scripting requirement. Every
 // other positional argument keeps its existing meaning and order.
-function extractJsonFlag(args: string[]): { json: boolean; rest: string[] } {
+//
+// `--check-updates` (doctor only) is a SEPARATE, explicit opt-in flag for
+// checking the CLI's own version against npm's public registry. It must
+// never be implied by anything else, including --json or just running
+// `doctor` plain — the product's privacy promise ("nothing leaves your
+// machine until you explicitly log in") means even this third-party,
+// no-mcpseal-server-involved check only ever happens when a user asks for
+// it by name, on the one command whose entire purpose is diagnostics.
+function extractFlags(args: string[]): { json: boolean; checkUpdates: boolean; rest: string[] } {
   const json = args.includes("--json");
-  return { json, rest: args.filter((a) => a !== "--json") };
+  const checkUpdates = args.includes("--check-updates");
+  const rest = args.filter((a) => a !== "--json" && a !== "--check-updates");
+  return { json, checkUpdates, rest };
 }
 
 function printClassifiedError(err: unknown): void {
@@ -41,7 +51,7 @@ function printClassifiedError(err: unknown): void {
 
 async function main(): Promise<void> {
   const [, , command, ...rawRest] = process.argv;
-  const { json, rest } = extractJsonFlag(rawRest);
+  const { json, checkUpdates, rest } = extractFlags(rawRest);
 
   switch (command) {
     case "init": {
@@ -208,7 +218,7 @@ async function main(): Promise<void> {
       return;
     }
     case "doctor": {
-      const report = await runDoctor(rest[0] ?? process.cwd());
+      const report = await runDoctor(rest[0] ?? process.cwd(), { checkUpdates });
       if (json) {
         console.log(JSON.stringify(report, null, 2));
       } else {
@@ -277,7 +287,7 @@ async function main(): Promise<void> {
     }
     default: {
       console.error(
-        `Unknown or missing command: ${command ?? "(none)"}\nUsage: mcpseal init|install|uninstall|status|doctor|scan|diff|login|logout|policy-pull [projectDir] [--json] | mcpseal proxy <serverName> <command> [args...] | mcpseal approve|deny <serverName> <toolName>`
+        `Unknown or missing command: ${command ?? "(none)"}\nUsage: mcpseal init|install|uninstall|status|scan|diff|login|logout|policy-pull [projectDir] [--json] | mcpseal doctor [projectDir] [--json] [--check-updates] | mcpseal proxy <serverName> <command> [args...] | mcpseal approve|deny <serverName> <toolName>`
       );
       process.exitCode = 1;
     }

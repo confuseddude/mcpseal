@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
+from importlib.metadata import PackageNotFoundError, version as installed_version
 
 from mcpseal.config import read_config
 from mcpseal.config_discovery import discover_servers_from_claude_code_project_config
@@ -15,10 +16,17 @@ from mcpseal.keychain import get_secret
 from mcpseal.lockfile import read_lockfile
 
 
+def _get_own_version() -> str:
+    try:
+        return installed_version("mcpseal")
+    except PackageNotFoundError:
+        return "unknown"
+
+
 @dataclass
 class DoctorCheck:
     name: str
-    category: str  # "local" | "control-plane"
+    category: str  # "local" | "control-plane" | "update"
     ok: bool
     detail: str
     remediation: list[str] | None = None
@@ -37,6 +45,11 @@ def run_doctor(
     cfg_path: str | None = None,
     request_fn: HttpRequestFn | None = None,
     timeout_s: float = 3.0,
+    # CLAUDE.md invariant 2 / the product's own privacy promise: this must
+    # never happen automatically. Only True when the user explicitly passes
+    # --check-updates to this already-explicit diagnostic command. Hits
+    # PyPI's public registry, not any mcpseal-owned server.
+    check_updates: bool = False,
 ) -> DoctorReport:
     resolved_project_dir = project_dir or os.getcwd()
     checks: list[DoctorCheck] = []
@@ -148,6 +161,33 @@ def run_doctor(
                     ],
                 )
             )
+
+    if check_updates:
+        own_version = _get_own_version()
+        req = request_fn or default_request
+        try:
+            res = req("GET", "https://pypi.org/pypi/mcpseal/json", {}, None)
+            if not res.ok:
+                checks.append(
+                    DoctorCheck(category="update", name="CLI version", ok=True, detail=f"installed {own_version} — could not check PyPI (HTTP {res.status})")
+                )
+            else:
+                body = res.json()
+                latest = body.get("info", {}).get("version") if isinstance(body, dict) else None
+                if not latest or latest == own_version:
+                    checks.append(DoctorCheck(category="update", name="CLI version", ok=True, detail=f"{own_version} (latest)"))
+                else:
+                    checks.append(
+                        DoctorCheck(
+                            category="update",
+                            name="CLI version",
+                            ok=False,
+                            detail=f"installed {own_version}, latest is {latest}",
+                            remediation=["pip install --upgrade mcpseal   # or: uvx mcpseal@latest"],
+                        )
+                    )
+        except Exception as err:  # noqa: BLE001 — a failed update check is informational, never fatal
+            checks.append(DoctorCheck(category="update", name="CLI version", ok=True, detail=f"installed {own_version} — could not reach PyPI to check: {err}"))
 
     all_local_ok = all(c.ok for c in checks if c.category == "local")
     return DoctorReport(checks=checks, allLocalOk=all_local_ok)

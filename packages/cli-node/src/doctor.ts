@@ -3,7 +3,7 @@
 // Control Plane reachability probe. Never repairs anything automatically
 // — every failed check names the command that would fix it.
 import path from "node:path";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { readLockfile } from "@mcpseal/cli-core";
 import { discoverServersFromClaudeCodeProjectConfig } from "./config-discovery.js";
 import { readConfig } from "./config.js";
@@ -12,7 +12,7 @@ import { getSecret } from "./keychain.js";
 
 export interface DoctorCheck {
   name: string;
-  category: "local" | "control-plane";
+  category: "local" | "control-plane" | "update";
   ok: boolean;
   detail: string;
   remediation?: string[];
@@ -29,6 +29,25 @@ export interface DoctorOptions {
   lockfilePath?: string;
   logPath?: string;
   cfgPath?: string;
+  // CLAUDE.md invariant 2 / the product's own privacy promise ("nothing
+  // leaves your machine until you explicitly log in") means an update
+  // check must never happen automatically — only when the user passes
+  // --check-updates to this already-explicit, already-diagnostic command.
+  // When true, hits npm's public registry (not any mcpseal-owned server)
+  // to compare the installed version against the latest published one.
+  checkUpdates?: boolean;
+}
+
+function getOwnVersion(): string {
+  try {
+    // Resolves correctly both from source (src/doctor.ts -> ../package.json)
+    // and from the bundled/published output (dist/cli.js -> ../package.json)
+    // since npm always ships package.json alongside the package's files.
+    const pkgPath = new URL("../package.json", import.meta.url);
+    return (JSON.parse(readFileSync(pkgPath, "utf-8")) as { version: string }).version;
+  } catch {
+    return "unknown";
+  }
 }
 
 export async function runDoctor(projectDir: string = process.cwd(), opts: DoctorOptions = {}): Promise<DoctorReport> {
@@ -146,6 +165,41 @@ export async function runDoctor(projectDir: string = process.cwd(), opts: Doctor
           "Events recorded while offline are retained locally and shipped once connectivity returns.",
         ],
       });
+    }
+  }
+
+  if (opts.checkUpdates) {
+    const ownVersion = getOwnVersion();
+    const fetchImpl = opts.fetchImpl ?? fetch;
+    const timeoutMs = opts.timeoutMs ?? 3000;
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      let res: Response;
+      try {
+        res = await fetchImpl("https://registry.npmjs.org/mcpseal/latest", { signal: controller.signal });
+      } finally {
+        clearTimeout(timer);
+      }
+      if (!res.ok) {
+        checks.push({ category: "update", name: "CLI version", ok: true, detail: `installed ${ownVersion} — could not check npm (HTTP ${res.status})` });
+      } else {
+        const body = (await res.json()) as { version?: string };
+        const latest = body.version;
+        if (!latest || latest === ownVersion) {
+          checks.push({ category: "update", name: "CLI version", ok: true, detail: `${ownVersion} (latest)` });
+        } else {
+          checks.push({
+            category: "update",
+            name: "CLI version",
+            ok: false,
+            detail: `installed ${ownVersion}, latest is ${latest}`,
+            remediation: ["npm install -g mcpseal@latest   # or: npx mcpseal@latest"],
+          });
+        }
+      }
+    } catch (err) {
+      checks.push({ category: "update", name: "CLI version", ok: true, detail: `installed ${ownVersion} — could not reach npm to check: ${(err as Error).message}` });
     }
   }
 
