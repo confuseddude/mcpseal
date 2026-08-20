@@ -39,7 +39,7 @@ def write_lockfile(path: str, lockfile: Lockfile) -> None:
     Path(path).write_text(json.dumps(lockfile, indent=2), encoding="utf-8")
 
 
-def create_empty_lockfile(generated_by: str = "mcpseal@0.1.0") -> Lockfile:
+def create_empty_lockfile(generated_by: str = "mcpseal@0.1.1") -> Lockfile:
     return {
         "version": 1,
         "generatedAt": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),

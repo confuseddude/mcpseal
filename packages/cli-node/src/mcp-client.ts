@@ -132,7 +132,7 @@ export class McpStdioClient {
     const result = await this.request("initialize", {
       protocolVersion: "2024-11-05",
       capabilities: {},
-      clientInfo: { name: "mcpseal", version: "0.1.0" },
+      clientInfo: { name: "mcpseal", version: "0.1.1" },
     });
     this.notify("notifications/initialized");
     return result;

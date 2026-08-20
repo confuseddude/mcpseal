@@ -113,7 +113,7 @@ class McpStdioClient:
             {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {},
-                "clientInfo": {"name": "mcpseal", "version": "0.1.0"},
+                "clientInfo": {"name": "mcpseal", "version": "0.1.1"},
             },
         )
         self._notify("notifications/initialized")

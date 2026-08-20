@@ -51,7 +51,7 @@ def append_event(
             "server": server,
             "tool": tool,
             "clientApp": client_app,
-            "mcpsealVersion": "0.1.0",
+            "mcpsealVersion": "0.1.1",
         }
         if observed_hash is not None:
             event["observedHash"] = observed_hash
