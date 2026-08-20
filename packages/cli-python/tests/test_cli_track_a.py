@@ -175,3 +175,25 @@ def test_entrypoint_survives_a_legacy_non_utf8_console(project):
     assert "UnicodeEncodeError" not in result.stderr
     assert "UNKNOWN_ERROR" not in result.stdout
     assert "MCPSEAL DOCTOR" in result.stdout
+
+
+def test_login_against_unreachable_control_plane_shows_friendly_message_not_unknown_error(project, capsys):
+    # Real bug found via an actual isolated-install test of the published
+    # package: `mcpseal login` against an unreachable Control Plane -- the
+    # realistic first thing a brand new user tries -- showed a bare
+    # UNKNOWN_ERROR because (a) urllib's connection-failure message didn't
+    # match any classifier rule, and (b) cli.py's login handler only
+    # caught LoginError, not the real exception type a network failure
+    # actually raises (urllib.error.URLError), so main() didn't even
+    # return cleanly. Uses a real, guaranteed-unreachable port, not a
+    # mocked request function.
+    os.environ["MCPSEAL_INGEST_URL"] = "http://127.0.0.1:1"
+    try:
+        code = main(["login"])
+    finally:
+        del os.environ["MCPSEAL_INGEST_URL"]
+    err = capsys.readouterr().err
+    assert code == 1
+    assert "AUTH_SERVER_UNREACHABLE" in err
+    assert "UNKNOWN_ERROR" not in err
+    assert "Local enforcement is completely unaffected" in err

@@ -238,7 +238,11 @@ def main(argv: list[str] | None = None) -> int:
             result = login_cmd(on_waiting_for_approval=on_waiting)
             print(f"mcpseal login: connected to workspace {result.workspaceId} (machine {result.machineId})")
             return 0
-        except LoginError as err:
+        except Exception as err:  # noqa: BLE001 — a real connection failure (urllib.error.URLError)
+            # is not a LoginError and must still be caught and classified
+            # here, not left to propagate past main()'s int-returning
+            # contract up to entrypoint()'s top-level handler. Mirrors
+            # cli.ts's login case, which already catches generically.
             _print_classified(err)
             return 1
 

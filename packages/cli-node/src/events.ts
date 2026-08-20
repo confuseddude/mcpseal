@@ -352,6 +352,35 @@ const RULES: ClassifierRule[] = [
     }),
   },
   {
+    // Real gap found via an actual isolated-install test of the published
+    // package (not caught by any unit test, since those inject fetchImpl
+    // and never hit a real DNS/connection failure): Node's fetch() throws
+    // exactly the string "fetch failed" for ANY connection-level failure
+    // (refused, DNS, TLS) — none of the existing login.ts throw sites'
+    // messages ("device authorization failed to start: HTTP...") ever run,
+    // because those only fire once fetch() has already resolved to a
+    // Response. Without this rule, a brand new user's very first
+    // `mcpseal login` attempt against an unreachable/not-yet-deployed
+    // Control Plane showed a bare "[UNKNOWN_ERROR] An unexpected error
+    // occurred" with zero context — exactly the "unexplained ERROR" this
+    // whole taxonomy exists to prevent.
+    test: (m) => m === "fetch failed",
+    describe: d({
+      code: "AUTH_SERVER_UNREACHABLE",
+      severity: "medium",
+      summary: "Could not reach the Control Plane server at all (connection failed).",
+      consequence: "Login did not complete. Local enforcement is completely unaffected — everything except login/policy-pull/event-shipping works exactly the same without it.",
+      remediation: [
+        "This is expected if your organization hasn't set up a workspace yet.",
+        "mcpseal doctor",
+        "mcpseal login   # retry once the server is reachable",
+      ],
+      retryable: true,
+      requiresNetwork: true,
+      requiresApproval: false,
+    }),
+  },
+  {
     test: (m) => m.includes("device authorization failed to start") || m.includes("device authorization poll failed") || m.includes("machine registration failed"),
     describe: d({
       code: "AUTH_SERVER_ERROR",

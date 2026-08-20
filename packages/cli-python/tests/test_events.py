@@ -136,6 +136,20 @@ def test_classify_thrown_routes_auth_server_errors():
     assert classify_thrown(Exception("machine registration failed: HTTP 403")).code == "AUTH_SERVER_ERROR"
 
 
+def test_classify_thrown_routes_urllib_connection_failure_not_unknown_error():
+    # Real gap found via an actual isolated-install test against an
+    # unreachable Control Plane: urllib.error.URLError's str() always
+    # contains "urlopen error" for a connection-level failure, and
+    # nothing matched it before this rule -- a brand new user's first
+    # `mcpseal login` showed a bare UNKNOWN_ERROR with zero context.
+    err = Exception("<urlopen error [WinError 10061] No connection could be made because the target machine actively refused it>")
+    c = classify_thrown(err)
+    assert c.code == "AUTH_SERVER_UNREACHABLE"
+    assert c.severity == "medium"
+    assert c.retryable is True
+    assert "Local enforcement is completely unaffected" in c.consequence
+
+
 def test_classify_thrown_falls_back_gracefully():
     c = classify_thrown(Exception("something totally novel no rule matches"))
     assert c.code == "UNKNOWN_ERROR"

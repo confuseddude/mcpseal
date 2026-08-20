@@ -181,6 +181,14 @@ describe("classifyThrown — routes real thrown message strings from the actual 
     expect(classifyThrown(new Error("machine registration failed: HTTP 403")).code).toBe("AUTH_SERVER_ERROR");
   });
 
+  it("Node's generic fetch() connection failure ('fetch failed') is classified, not a bare UNKNOWN_ERROR — found via a real isolated-install test against an unreachable Control Plane", () => {
+    const c = classifyThrown(new Error("fetch failed"));
+    expect(c.code).toBe("AUTH_SERVER_UNREACHABLE");
+    expect(c.severity).toBe("medium");
+    expect(c.retryable).toBe(true);
+    expect(c.consequence).toContain("Local enforcement is completely unaffected");
+  });
+
   it("MCP server process exit / spawn failure", () => {
     const c = classifyThrown(new Error("server process exited (code=1, signal=null) before responding"));
     expect(c.code).toBe("MCP_SERVER_UNAVAILABLE");

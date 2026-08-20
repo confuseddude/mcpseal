@@ -287,6 +287,32 @@ RULES: list[ClassifierRule] = [
         ),
     ),
     ClassifierRule(
+        # Real gap found via an actual isolated-install test of the
+        # published package: urllib.error.URLError's str() always contains
+        # "urlopen error" for any connection-level failure (refused, DNS,
+        # timeout) -- none of login.py's own raised messages ever run for
+        # this case, since those only fire once a response was actually
+        # received. Without this rule, a brand new user's very first
+        # `mcpseal login` against an unreachable Control Plane showed a
+        # bare "[UNKNOWN_ERROR] An unexpected error occurred" with zero
+        # context. Mirrors the identical fix in cli-node's events.ts for
+        # Node's "fetch failed".
+        test=lambda m: "urlopen error" in m,
+        describe=EventDescription(
+            code="AUTH_SERVER_UNREACHABLE",
+            severity="medium",
+            summary="Could not reach the Control Plane server at all (connection failed).",
+            consequence="Login did not complete. Local enforcement is completely unaffected — everything except login/policy-pull/event-shipping works exactly the same without it.",
+            remediation=[
+                "This is expected if your organization hasn't set up a workspace yet.",
+                "mcpseal doctor",
+                "mcpseal login   # retry once the server is reachable",
+            ],
+            retryable=True,
+            requires_network=True,
+        ),
+    ),
+    ClassifierRule(
         test=lambda m: "device authorization failed to start" in m or "device authorization poll failed" in m or "machine registration failed" in m,
         describe=EventDescription(
             code="AUTH_SERVER_ERROR",

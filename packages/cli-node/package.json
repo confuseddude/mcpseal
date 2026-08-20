@@ -9,13 +9,13 @@
     "node": ">=18"
   },
   "files": [
-    "dist"
+    "dist/cli.js",
+    "dist/cli.d.ts"
   ],
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
   "bin": {
     "mcpseal": "dist/cli.js"
   },
+  "keywords": ["mcp", "model-context-protocol", "security", "cli", "supply-chain", "ai-agents", "claude"],
   "scripts": {
     "build": "tsc -p tsconfig.json && node esbuild.bundle-cli.mjs",
     "test": "vitest run"

@@ -117,4 +117,25 @@ describe("unrecognized error paths get real remediation text, not a bare stack t
     expect(res.stderr).toContain("SERVER_NOT_CONFIGURED");
     expect(res.stderr).not.toContain("at Object.<anonymous>"); // no raw stack trace leaking through
   }, 15_000);
+
+  // Real bug found via an actual isolated-install test of the published
+  // package (npm pack + install in a directory with zero monorepo
+  // access): `mcpseal login` against an unreachable/not-yet-deployed
+  // Control Plane — the realistic first thing a brand new user tries —
+  // showed a bare "[UNKNOWN_ERROR] An unexpected error occurred" with no
+  // context, because Node's fetch() failure message ("fetch failed")
+  // didn't match any classifier rule. This is the actual real command a
+  // real user runs, through the real compiled binary, against a real
+  // (guaranteed-unreachable) port — not a mocked fetchImpl.
+  it("mcpseal login against an unreachable Control Plane shows AUTH_SERVER_UNREACHABLE guidance, not UNKNOWN_ERROR", () => {
+    const res = spawnSync("node", [cliJsPath, "login"], {
+      encoding: "utf-8",
+      env: { ...process.env, MCPSEAL_INGEST_URL: "http://127.0.0.1:1" }, // port 1: guaranteed connection-refused, no real service
+      timeout: 10_000,
+    });
+    expect(res.status).not.toBe(0);
+    expect(res.stderr).toContain("AUTH_SERVER_UNREACHABLE");
+    expect(res.stderr).not.toContain("UNKNOWN_ERROR");
+    expect(res.stderr).toContain("Local enforcement is completely unaffected");
+  }, 15_000);
 });
