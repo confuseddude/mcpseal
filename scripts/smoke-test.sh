@@ -54,7 +54,12 @@ fi
 # --- npm artifact actually runs --------------------------------------------
 
 step "npx mcpseal@$VERSION runs"
-out=$(npx -y "mcpseal@$VERSION" --version 2>&1) || fail "npx invocation failed: $out"
+# Capture stdout only, first line, CR stripped. npm writes upgrade
+# notices to stderr and Windows shells add a trailing \r -- folding
+# either into the comparison makes a correct version look like a
+# failure, which is exactly what happened the first time this ran.
+out=$(npx -y "mcpseal@$VERSION" --version 2>/dev/null | head -n1 | tr -d '\r')
+[ -n "$out" ] || fail "npx produced no version output"
 [ "$out" = "$VERSION" ] || fail "npx reported '$out', expected '$VERSION'"
 echo "  --version -> $out"
 npx -y "mcpseal@$VERSION" --help >/dev/null 2>&1 || fail "npx --help failed"
