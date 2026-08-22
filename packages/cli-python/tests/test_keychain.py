@@ -1,6 +1,18 @@
+import os
+
 import pytest
 
 from mcpseal.keychain import delete_secret, get_secret, set_secret
+
+# Real OS keychain integration is unreliable inside headless/ephemeral CI
+# containers -- there's no real desktop session backing gnome-keyring's
+# SecretStorage on Linux runners, which causes both hangs and spurious
+# failures (see CHECKLIST.md). Covered by manual cross-OS verification
+# before each release instead; this still runs locally on every OS.
+pytestmark = pytest.mark.skipif(
+    os.environ.get("CI") == "true",
+    reason="real OS keychain is unreliable on headless CI runners",
+)
 
 TEST_ACCOUNT = "test-account-mcpseal-pytest"
 

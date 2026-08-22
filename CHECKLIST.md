@@ -2,7 +2,7 @@
 
 Where things actually stand today, what's left before calling Track A "done," and the full steps for GitHub-based Trusted Publishing. Track B (Control Plane/dashboard/backend) is intentionally out of scope here — revisit after funding, per CLAUDE.md.
 
-Status snapshot as of `0.1.1`: live on npm and PyPI, real end-to-end tests pass, no GitHub repo exists yet (fully local git history, no remote).
+Status snapshot as of `0.1.2` (in flight): GitHub repo is live at github.com/confuseddude/mcpseal, GitHub Actions Trusted Publishing is wired up for both npm and PyPI (OIDC, zero stored tokens once old credentials are revoked).
 
 ---
 
@@ -14,17 +14,18 @@ Status snapshot as of `0.1.1`: live on npm and PyPI, real end-to-end tests pass,
 
 ## 1. Ship a real GitHub repo (blocks almost everything else below)
 
-- [ ] `git remote -v` is currently empty — there is no GitHub repo yet, just local history.
-- [ ] Create the repo (public, since this is a free OSS distribution play), push `master` (or rename to `main` first — your call, but do it before pushing, not after).
+- [x] Repo created and pushed: github.com/confuseddude/mcpseal.
+- [x] GitHub Actions Trusted Publishing (`.github/workflows/publish.yml`) configured and validated end-to-end for both npm and PyPI.
 - [ ] Add repo topics/description for discoverability (`mcp`, `model-context-protocol`, `security`, `cli`, `supply-chain`).
-- [ ] This unlocks: Trusted Publishing (Section 4), issue tracking, a real "install from source" story, badges on the npm/PyPI package pages linking back to real code (huge trust signal for a security tool — right now your published packages point at nothing).
+- [ ] Badges on the npm/PyPI package pages linking back to the repo (huge trust signal for a security tool — right now your published packages point at nothing). Add repo link to both package READMEs too.
+- [ ] Once satisfied with Trusted Publishing, revoke the manual npm/PyPI tokens used for the 0.1.0/0.1.1 publishes and clear local `~/.npmrc`/`~/.pypirc`.
 
 ## 2. CI gaps
 
 Current `.github/workflows/parity.yml` only runs `cli-core`, `shared-types`, and `cli-python` tests. It does **not** run `cli-node`'s own suite (the 147 tests covering `cli.ts`, `doctor.ts`, `login.ts`, the integration tests against the real compiled binary).
 
-- [ ] Add a CI job for `cli-node`'s test suite (`pnpm --filter mcpseal build && pnpm --filter mcpseal test`) — right now a broken `cli.ts` could pass CI entirely.
-- [ ] Add an OS matrix, at least for the keychain-touching code paths. `@napi-rs/keyring` (Node) and `keyring` (Python) behave differently per OS (Windows Credential Manager / macOS Keychain / Linux Secret Service) — you've only ever tested on Windows. `ubuntu-latest` + `macos-latest` in the matrix would catch a real class of bug you currently have zero coverage on.
+- [ ] Add a CI job for `cli-node`'s test suite (`pnpm --filter mcpseal build && pnpm --filter mcpseal test`) — right now a broken `cli.ts` could pass CI entirely. (`publish.yml`'s npm job now does this as a publish gate, but it's not a check on ordinary pushes/PRs.)
+- [x]/[ ] **Real-OS-keychain tests are now CI-skipped, not CI-matrixed.** Tried the OS-matrix approach for real: installing gnome-keyring + a D-Bus session on `ubuntu-latest` to run `test_keychain.py`/`test_login.py`/`test_machine_identity.py`/`test_ship_events.py` (19 tests total) against a real Linux Secret Service backend. It's genuinely unreliable in an ephemeral headless container — no real desktop/logind session backing it, so it both hung indefinitely on some runs and produced ~15 spurious failures on others, on tests that pass instantly on Windows. These 19 tests now skip when `CI=true` (see `pytestmark` in each of those four files) and only run locally. **Still open:** get real Linux/macOS keychain coverage some other way — either a self-hosted runner with a real desktop session, or just disciplined manual testing on a real Linux/Mac box before each release. Don't re-attempt the ephemeral-container approach without a different strategy; it was tried and it doesn't work.
 - [ ] Add a minimum-supported-version check: Node 18 (per `engines` in `package.json`) and Python 3.10 (per `pyproject.toml`) aren't what CI actually runs (`node-version: 20`, `python-version: "3.11"`). If you claim `>=18`/`>=3.10`, test the floor, not just whatever's convenient.
 - [ ] `npm audit` / `pip-audit` (or `pip install pip-audit && pip-audit`) as a CI step — you have exactly two runtime deps on the Node side (`@napi-rs/keyring`, `@noble/curves`) and three on Python (`canonicaljson`, `keyring`, `cryptography`), so this is cheap to run and matters a lot for a security-positioned tool with a supply-chain-attack thesis.
 - [ ] Make the whole CI suite a required check before merge, once branch protection exists (Section 1).
