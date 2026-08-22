@@ -86,6 +86,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      # PYSEC-2026-3447: setuptools < 83.0.0 can silently fail to apply
+      # MANIFEST.in exclusions, packing files into a published sdist that
+      # the maintainer intended to leave out -- irreversible once on PyPI.
+      # This job builds the sdist we publish, so pin past it. Kept in step
+      # with parity.yml's audit job.
+      - run: python -m pip install --upgrade pip "setuptools>=83.0.0" wheel
       - run: pip install -e ".[dev]" build pytest-timeout
       # Real OS keychain integration (test_keychain.py, test_login.py,
       # test_machine_identity.py, test_ship_events.py) is skipped on CI --
