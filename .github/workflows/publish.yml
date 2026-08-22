@@ -1,0 +1,55 @@
+name: Publish
+
+# Fires only on a version tag push (e.g. v0.1.2), so a normal push to
+# master never accidentally publishes. Uses OIDC-based Trusted Publishing
+# for both npm and PyPI (id-token: write) -- no long-lived publish token
+# is stored anywhere for this to work. See CHECKLIST.md for the one-time
+# npm/PyPI Trusted Publisher configuration this depends on.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  publish-npm:
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: "https://registry.npmjs.org"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter mcpseal build
+      - run: pnpm --filter mcpseal test
+      - run: npm publish --provenance --access public
+        working-directory: packages/cli-node
+
+  publish-pypi:
+    name: Publish to PyPI
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    defaults:
+      run:
+        working-directory: packages/cli-python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -e ".[dev]" build
+      - run: pytest -q
+      - run: python -m build
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: packages/cli-python/dist
