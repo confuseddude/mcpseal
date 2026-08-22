@@ -11,52 +11,54 @@ Status snapshot as of `0.1.2` (**published**): GitHub repo live at github.com/co
 - [x] **Rotate/revoke the npm token that leaked into a session transcript.** Deleted. Nothing depends on it any more — publishing is OIDC-only.
 - [x] **Rotate/revoke the PyPI token too.** Deleted.
 - [ ] **Clear the local dotfiles — still outstanding.** `~/.npmrc` and `~/.pypirc` both still exist on disk and still contain a credential line each. The tokens they hold are revoked, so they're dead strings, but a plaintext credential in a dotfile is exactly what invariant 6 forbids and there is no longer any reason for either file to exist. Verified neither is tracked by git (`git ls-files` clean), so nothing leaked into the repo.
-- [ ] Add `.npmrc`/`.pypirc` to `.gitignore` as belt-and-braces — they live in `$HOME` not the repo, so the risk is low, but it's free insurance against a stray `git add -A`.
+- [x] `.npmrc`/`.pypirc` added to `.gitignore` as belt-and-braces against a stray `git add -A`.
 
 ## 1. Ship a real GitHub repo (blocks almost everything else below)
 
 - [x] Repo created and pushed: github.com/confuseddude/mcpseal.
 - [x] GitHub Actions Trusted Publishing (`.github/workflows/publish.yml`) configured and validated end-to-end for both npm and PyPI.
-- [ ] Add repo topics/description for discoverability (`mcp`, `model-context-protocol`, `security`, `cli`, `supply-chain`).
-- [ ] Badges on the npm/PyPI package pages linking back to the repo (huge trust signal for a security tool — right now your published packages point at nothing). Add repo link to both package READMEs too.
+- [x] Repo topics + description + homepage set (10 topics incl. `mcp`, `model-context-protocol`, `security`, `supply-chain`, `tool-poisoning`).
+- [x] Badges + repo links added to the root README and **both** package READMEs, plus a "Verifying what you installed" section (`npm audit signatures`, PEP 740). Ships with the next release — the currently published `0.1.2` READMEs still point at nothing.
 - [x] Revoke the manual npm/PyPI tokens used for the 0.1.0/0.1.1 publishes. Done — see Section 0 for the remaining local-dotfile cleanup.
 
 ## 2. CI gaps
 
 Current `.github/workflows/parity.yml` only runs `cli-core`, `shared-types`, and `cli-python` tests. It does **not** run `cli-node`'s own suite (the 147 tests covering `cli.ts`, `doctor.ts`, `login.ts`, the integration tests against the real compiled binary).
 
-- [ ] Add a CI job for `cli-node`'s test suite (`pnpm --filter mcpseal build && pnpm --filter mcpseal test`) — right now a broken `cli.ts` could pass CI entirely. (`publish.yml`'s npm job now does this as a publish gate, but it's not a check on ordinary pushes/PRs.)
+- [x] `cli-node`'s suite now runs on every push/PR (`parity.yml` job `cli-node`), across ubuntu/macos/windows.
 - [x]/[ ] **Real-OS-keychain tests are CI-skipped, not CI-matrixed.** `test_keychain.py`/`test_login.py`/`test_machine_identity.py`/`test_ship_events.py` (19 tests) need a real Secret Service backend; emulating one (gnome-keyring + D-Bus) in an ephemeral headless container proved unreliable, so they skip when `CI=true` via `pytestmark`. **Still open:** real Linux/macOS keychain coverage via a self-hosted runner with a desktop session, or disciplined manual testing before each release.
 - [x] **CORRECTION — the earlier "the Linux CI failures are all just keychain flakiness" conclusion was wrong, and the skip hid two real bugs.** Reproducing the CI environment locally in Docker (`python:3.11-slim`, `CI=true`) showed the remaining Linux failures were *product* bugs, not environment noise:
   1. `proxy.py`/`mcp_client.py` passed `shell=True` alongside an argument **list**. Correct on Windows (Popen joins via `list2cmdline`, and the shell is needed for `npx.cmd`), silently wrong on POSIX — there it runs `/bin/sh -c "<command>"` and demotes the rest to `$0/$1`, so the MCP server spawned with **no arguments**, never spoke JSON-RPC, and the proxy blocked forever on its first read. **`mcpseal proxy` was broken on Linux and macOS.** Accounted for all 16 failures *and* the 2-hour CI hang. Fixed via `USE_SHELL` in `process_utils.py`.
   2. `delete_secret()` caught `PasswordDeleteError` but not its sibling `NoKeyringError`, so `mcpseal logout` crashed with a traceback on any box without a keyring backend. Fixed narrowly — a locked keychain holding a real secret must still fail loudly.
   **Lesson: don't silence a failing suite on a platform the product actually ships to.** Skipping the tests in the publish workflow suppressed a true signal for several release attempts. Reproduce the CI platform in Docker instead — it costs ~90s and needs no CI round trip.
-- [ ] **Follow-up:** `cli-node`'s `deleteSecret()` uses a bare `catch {}`, so it swallows a locked-keychain failure — the exact case the Python side deliberately keeps loud. Make the two consistent.
-- [ ] **Follow-up:** no CI job runs the Python suite on Linux against a *working* proxy path in a way that would have caught bug 1 earlier — consider a real OS matrix (ubuntu/macos/windows) for the non-keychain tests.
-- [ ] Add a minimum-supported-version check: Node 18 (per `engines` in `package.json`) and Python 3.10 (per `pyproject.toml`) aren't what CI actually runs (`node-version: 20`, `python-version: "3.11"`). If you claim `>=18`/`>=3.10`, test the floor, not just whatever's convenient.
-- [ ] `npm audit` / `pip-audit` (or `pip install pip-audit && pip-audit`) as a CI step — you have exactly two runtime deps on the Node side (`@napi-rs/keyring`, `@noble/curves`) and three on Python (`canonicaljson`, `keyring`, `cryptography`), so this is cheap to run and matters a lot for a security-positioned tool with a supply-chain-attack thesis.
+- [x] `cli-node`'s `deleteSecret()` no longer swallows a locked-keychain failure — it rethrows when the message indicates a locked/permission-denied backend, matching cli-python. A missing backend is still a silent no-op in both.
+- [x] Real OS matrix added: `cli-python` runs on ubuntu/macos/windows and `cli-node` on all three, so a POSIX-only regression fails on the next push rather than at release time. All CI pytest runs now use `--timeout`, so a hang fails loudly instead of stalling for hours.
+- [x] Floors are tested: a `node-floor` job builds and tests on Node 18, and the python matrix includes 3.10 — the versions actually advertised in `engines`/`requires-python`.
+- [x] `audit` job runs `pnpm audit --audit-level=high` and `pip-audit --desc` on every push/PR.
 - [ ] Make the whole CI suite a required check before merge, once branch protection exists (Section 1).
 
 ## 3. Release hygiene (the stuff that bit you this week)
 
-- [ ] **A version-consistency test.** You just manually `grep`'d for `"0.1.0"` across 10+ files and hand-edited each one. That's exactly the kind of thing that silently drifts on the next release. Add one test (either language) that reads `package.json`/`pyproject.toml` version and asserts every hardcoded `mcpsealVersion`/`clientInfo.version`/`generatedBy` string matches it — fail the build if they don't.
-- [ ] **`mcpseal --version` / `-v`.** Doesn't exist right now — checked directly, only `help`/`--help`/`-h` are wired. This is the second most instinctive thing after `--help` for anyone debugging "which version do I actually have installed," especially once you're fielding bug reports from strangers.
-- [ ] **`CHANGELOG.md`.** You shipped `0.1.0` → `0.1.1` with a real, user-facing fix (the `--help` bug) and nobody upgrading has any way to know that from the package page. Doesn't need to be fancy — Keep a Changelog format is fine.
-- [ ] **A release checklist or script**, even a simple shell script, that does: bump version → run version-consistency test → run both full suites → build both packages → publish both → tag the commit (`git tag v0.1.1`) → smoke-test install from the real registries in a throwaway temp dir. You did all of this by hand this week; scripting it removes the chance of skipping the verification step under time pressure next time.
+- [x] **Version-consistency tests in both languages** (`cli-node/src/version.consistency.test.ts`, `cli-python/tests/test_version_consistency.py`). The version now lives in one constant per language (`version.ts` / `version.py`); every call site imports it. The tests assert the two manifests, both constants and cli-core's `generatedBy` default all agree, **and** that no source file reintroduces a hardcoded literal. Verified by deliberately simulating a half-finished bump — it fails as intended.
+- [x] **`mcpseal --version` / `-v` / `version`** implemented in both CLIs, printing a bare pipeable version string, and listed in `--help`.
+- [x] **`CHANGELOG.md`** added in Keep a Changelog format, backfilled for 0.1.0/0.1.1/0.1.2 with an Unreleased section covering the POSIX proxy fix and the logout crash.
+- [x] **`scripts/release.sh <version>`** — refuses a dirty tree or an already-published version, bumps all five sites, builds, runs every suite (consistency tests catch a partial bump), asserts both built CLIs report the new version, runs the Python suite on Linux via Docker if available, then commits and tags. It deliberately does **not** publish: pushing the tag does, via CI.
+- [x] **`scripts/smoke-test.sh <version>`** — verifies a *published* release from the real registries: both serve it, npm SLSA + PyPI PEP 740 provenance present, `npx mcpseal@<v> --version` works, and a Linux `pip install` runs `--version`/`--help`/`logout`.
+- [x] **Tag/version mismatch gate.** `publish.yml` now has a `verify-version` job that both publish jobs depend on: it compares the pushed tag against `package.json` *and* `pyproject.toml` and fails in ~20s if they disagree. Publishing is irreversible, so this catches a mistyped tag before it burns a version number.
 - [x] Push git tags for `v0.1.0` and `v0.1.1` retroactively — done, all three (`v0.1.0`, `v0.1.1`, `v0.1.2`) are on origin.
 
 ## 4. Docs / trust signals for a security tool specifically
 
-- [ ] **`SECURITY.md`** — how to report a vulnerability. For a tool whose entire pitch is "trust me to catch supply-chain attacks," not having a disclosed security-contact path is a real gap the moment you have any real users.
-- [ ] **Badges on `README.md`**: npm version, PyPI version, license, CI status. Free, and it's the first thing a skeptical developer looks for before trusting a security CLI enough to run `npx`.
-- [ ] **`CONTRIBUTING.md`** — even a short one, once the repo is public; lowers the bar for the first outside contributor / issue reporter.
-- [ ] Link the GitHub repo from both package READMEs (`packages/cli-node/README.md`, `packages/cli-python/README.md`) once it exists — right now someone finding you on npm has no way to see the code, file an issue, or verify what they're running.
+- [x] **`SECURITY.md`** — private reporting via GitHub Security Advisories, 72h ack / 7d assessment targets, and an explicit in-scope list (unblocked drift, hash collisions, cross-language hash divergence, policy-signature bypass, fail-open paths, secret disclosure, pre-login network calls) vs out-of-scope.
+- [x] **Badges on `README.md`** — npm, PyPI, CI status and license, plus a note that releases carry verifiable provenance.
+- [x] **`CONTRIBUTING.md`** — layout, setup, how to run each suite, the six non-negotiable invariants, versioning rules, and a Docker recipe for reproducing Linux locally (verified working: 146 passed, 22 skipped).
+- [x] Both package READMEs now link the repo prominently and explain how to verify provenance. **Note:** README changes only reach the registries on the next publish, so `0.1.2`'s package pages still lack them.
 
 ## 5. Test coverage gaps worth closing
 
 - [ ] Real end-to-end test against an actual Claude Code install (not just the stub MCP server used in the integration tests) — you've done this manually but it's not automated or repeatable.
-- [ ] A "rug pull actually gets blocked" test that mutates a live tool description mid-session (server changes its own description between two calls) rather than just testing static hash mismatch — closer to the real attack you're defending against.
-- [ ] Coverage reporting (`vitest run --coverage`, `pytest --cov`) wired into CI, even without a hard threshold gate yet — mainly so you can *see* what's untested rather than guessing.
+- [x] **Rug-pull-mid-session tests** (`tests/test_fixtures/rugpull_server.py` + two tests in `test_proxy_integration.py`). A single live server process serves the approved `read_file` definition once, then rewrites its description to exfiltrate file contents on every later `tools/list`. Asserts the first list passes through, the mutated one is stripped, the block is recorded as `blocked_drift`, and it *stays* blocked on repeated calls. **Validated by injecting a regression** (making the proxy forward unfiltered): both tests fail, then pass again once reverted — so they can actually catch this.
+- [x] Informational `coverage` job in `parity.yml` (`vitest --coverage`, `pytest --cov=mcpseal --cov-report=term-missing`). No threshold gate — the point is visibility.
 
 ## 6. Nice-to-haves, not blockers
 

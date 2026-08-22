@@ -9,6 +9,12 @@ __pycache__/
 .venv/
 .pytest_cache/
 .mcp-lock.json.bak
+# Publishing credentials must never be committed. Releases go through
+# GitHub Actions OIDC and need no token on any developer machine, so
+# these files should not exist here at all -- this is belt-and-braces
+# against a stray `git add -A`.
+.npmrc
+.pypirc
 .next/
 *.tsbuildinfo
 next-env.d.ts

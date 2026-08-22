@@ -26,9 +26,48 @@ jobs:
       - run: pnpm --filter @mcpseal/cli-core test
       - run: pnpm --filter @mcpseal/shared-types test
 
-  python:
-    name: cli-python
-    runs-on: ubuntu-latest
+  # cli-node's own suite (cli.ts, doctor.ts, login.ts, the integration tests
+  # against the real compiled binary) was previously only run as a publish
+  # gate, which meant a broken cli.ts could pass CI on every ordinary push
+  # and only surface at release time. It runs on push/PR now.
+  cli-node:
+    name: cli-node (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @mcpseal/shared-types build
+      - run: pnpm --filter @mcpseal/cli-core build
+      - run: pnpm --filter mcpseal build
+      - run: pnpm --filter mcpseal test
+
+  # A real OS matrix. The proxy spawned MCP servers incorrectly on POSIX for
+  # several releases while every Windows test passed, because the Python
+  # suite had only ever run on Windows locally and its Linux failures were
+  # being skipped on CI. Non-keychain tests now run on all three platforms;
+  # the 19 real-OS-keychain tests still skip when CI=true (no Secret Service
+  # on a headless runner) — see CHECKLIST.md section 2.
+  cli-python:
+    name: cli-python (${{ matrix.os }}, py${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.11"]
+        include:
+          # Test the floor we actually advertise in pyproject.toml, not just
+          # whatever version is convenient.
+          - os: ubuntu-latest
+            python-version: "3.10"
     defaults:
       run:
         working-directory: packages/cli-python
@@ -36,14 +75,70 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -e ".[dev]" pytest-timeout
+      # --timeout is load-bearing: a blocking read with no timeout once
+      # stalled this job for over two hours, and a hang is indistinguishable
+      # from a slow test until it's too late to tell.
+      - run: pytest -q --timeout=120 --timeout-method=thread -rf
+
+  # Node 18 is the floor claimed by cli-node's `engines` field. Building and
+  # testing on 20 while advertising 18 means the claim is untested.
+  node-floor:
+    name: cli-node on Node 18 (advertised floor)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @mcpseal/shared-types build
+      - run: pnpm --filter @mcpseal/cli-core build
+      - run: pnpm --filter mcpseal build
+      - run: pnpm --filter mcpseal test
+
+  # No hard threshold gate yet -- the point is to be able to SEE what's
+  # untested rather than guess. Runs on Linux only; coverage doesn't vary
+  # by platform enough to justify three times the minutes.
+  coverage:
+    name: coverage (informational)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @mcpseal/shared-types build
+      - run: pnpm --filter @mcpseal/cli-core build
+      - run: pnpm --filter @mcpseal/cli-core test -- --coverage
+      - uses: actions/setup-python@v5
+        with:
           python-version: "3.11"
-      - run: pip install -e ".[dev]"
-      # Real OS keychain integration (test_keychain.py, test_login.py,
-      # test_machine_identity.py, test_ship_events.py) is skipped on CI --
-      # emulating a real desktop keychain session (gnome-keyring +
-      # SecretStorage) inside an ephemeral, headless container proved
-      # unreliable in practice: it both hung indefinitely and produced
-      # spurious failures partway through, on tests that pass instantly
-      # on a real OS. See CHECKLIST.md. Covered by manual verification
-      # across real OSes before each release instead.
-      - run: pytest -q
+      - run: pip install -e ".[dev]" pytest-cov pytest-timeout
+        working-directory: packages/cli-python
+      - run: pytest -q --timeout=120 --cov=mcpseal --cov-report=term-missing
+        working-directory: packages/cli-python
+
+  # Cheap and high-value for a tool whose entire pitch is supply-chain
+  # integrity: two runtime deps on the Node side, three on Python.
+  audit:
+    name: dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: pnpm/action-setup@v4
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm audit --audit-level=high
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pip-audit
+      - run: pip-audit --desc
+        working-directory: packages/cli-python

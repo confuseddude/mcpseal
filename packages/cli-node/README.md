@@ -1,5 +1,11 @@
 # mcpseal
 
+[![npm](https://img.shields.io/npm/v/mcpseal?logo=npm&label=npm)](https://www.npmjs.com/package/mcpseal)
+[![CI](https://github.com/confuseddude/mcpseal/actions/workflows/parity.yml/badge.svg)](https://github.com/confuseddude/mcpseal/actions/workflows/parity.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/confuseddude/mcpseal/blob/master/LICENSE)
+
+**Source, issues and docs: https://github.com/confuseddude/mcpseal**
+
 An MCP tool-integrity CLI: pins the hash of every approved MCP tool definition and blocks execution the instant a tool's description or input schema drifts — the pattern known as a "rug pull," where a server changes a tool's behavior after you've already trusted it. Free, local, zero-infra.
 
 ## What it does
@@ -36,3 +42,18 @@ npx mcpseal@latest install
 | `mcpseal policy-pull` | Fetch and verify a signed org policy, if connected |
 
 Full source, architecture docs, and the Python twin of this CLI (`uvx mcpseal`) are in the same monorepo this package is built from.
+
+## Verifying what you installed
+
+Every release is published from GitHub Actions with no stored credentials, and carries build provenance you can check yourself:
+
+```bash
+mcpseal --version
+npm audit signatures            # npm: verifies the SLSA provenance attestation
+```
+
+PyPI attestations (PEP 740) are shown on the [project page](https://pypi.org/project/mcpseal/) and name the exact repo, workflow and commit that produced the artifact.
+
+## Reporting a vulnerability
+
+See [SECURITY.md](https://github.com/confuseddude/mcpseal/blob/master/SECURITY.md).

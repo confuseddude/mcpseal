@@ -1,6 +1,18 @@
 # mcpseal
 
+[![npm](https://img.shields.io/npm/v/mcpseal?logo=npm&label=npm)](https://www.npmjs.com/package/mcpseal)
+[![PyPI](https://img.shields.io/pypi/v/mcpseal?logo=pypi&logoColor=white&label=PyPI)](https://pypi.org/project/mcpseal/)
+[![CI](https://github.com/confuseddude/mcpseal/actions/workflows/parity.yml/badge.svg)](https://github.com/confuseddude/mcpseal/actions/workflows/parity.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 An MCP tool-integrity CLI: pins the hash of every approved MCP tool definition and blocks execution the instant a tool's description or input schema drifts — the pattern known as a "rug pull," where a server changes a tool's behavior after you've already trusted it. Free, local, zero-infra.
+
+Published releases are built by GitHub Actions with no stored credentials, and both packages carry verifiable build provenance — [npm](https://www.npmjs.com/package/mcpseal) via SLSA attestation, [PyPI](https://pypi.org/project/mcpseal/) via PEP 740. You can confirm any release was built from this repo, from a specific commit, in a specific CI run.
+
+```bash
+npx mcpseal init      # Node
+uvx mcpseal init      # Python
+```
 
 ## What it does
 

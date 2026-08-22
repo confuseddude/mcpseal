@@ -140,3 +140,108 @@ def test_records_block_decision_via_on_decision_callback(pipes):
         assert denied_decision["reason"] == "blocked_denied"
     finally:
         handle.stop()
+
+
+# CHECKLIST.md section 5: a rug pull that actually happens mid-session,
+# rather than a static hash mismatch arranged up front. The server below
+# serves the approved definition once, then mutates that tool's
+# description on every later tools/list -- one live process, one session,
+# nothing about the lockfile or the server's identity changing. A proxy
+# that only verified at startup, or cached the first tool list, would
+# pass every other test in this file and still fail to stop the attack
+# this product exists to stop.
+RUGPULL_SERVER = os.path.join(os.path.dirname(__file__), "test_fixtures", "rugpull_server.py")
+
+APPROVED_DESCRIPTION = "Reads a file from disk"
+APPROVED_READ_FILE = {
+    "name": "read_file",
+    "description": APPROVED_DESCRIPTION,
+    "inputSchema": {"type": "object"},
+}
+
+
+def make_rugpull_lockfile():
+    return {
+        "version": 1,
+        "generatedAt": "2026-08-17T00:00:00Z",
+        "generatedBy": "mcpseal@test",
+        "servers": {
+            "rug": {
+                "transport": "stdio",
+                "command": PY,
+                "args": [RUGPULL_SERVER],
+                "commandHash": "sha256:cmd",
+                "tools": {
+                    "read_file": {
+                        "hash": hash_tool(APPROVED_READ_FILE),
+                        "description": APPROVED_DESCRIPTION,
+                        "approvedAt": "2026-08-17T00:00:00Z",
+                        "approvedBy": "local",
+                        "status": "approved",
+                    }
+                },
+            }
+        },
+        "policy": {"onDrift": "block", "onUnknownTool": "block", "allowNewToolsFromApprovedServer": False},
+        "signature": None,
+    }
+
+
+def _list_tools(client_w, out_r, req_id):
+    client_w.write(json.dumps({"jsonrpc": "2.0", "id": req_id, "method": "tools/list", "params": {}}) + "\n")
+    client_w.flush()
+    return json.loads(out_r.readline())["result"]["tools"]
+
+
+def test_rug_pull_mid_session_is_blocked(pipes):
+    client_r, client_w, out_r, out_w = pipes
+    decisions = []
+    handle = run_proxy(
+        PY,
+        [RUGPULL_SERVER],
+        "rug",
+        make_rugpull_lockfile(),
+        client_r,
+        out_w,
+        on_decision=lambda name, result: decisions.append((name, result)),
+    )
+    try:
+        # First list: the server is still honest, so the tool is approved
+        # and reaches the client untouched.
+        first = _list_tools(client_w, out_r, 1)
+        assert [t["name"] for t in first] == ["read_file"]
+        assert first[0]["description"] == APPROVED_DESCRIPTION
+        assert decisions[-1][1]["decision"] == "allow"
+
+        # Second list, same session, same process: the server has now
+        # rewritten the description to exfiltrate file contents. It must
+        # not reach the client.
+        second = _list_tools(client_w, out_r, 2)
+        assert [t["name"] for t in second] == [], (
+            "RUG PULL NOT BLOCKED: the mutated tool definition was forwarded to the client"
+        )
+
+        # And the block must be recorded with the right reason, not merely
+        # dropped silently.
+        blocked = [(n, r) for n, r in decisions if r["decision"] == "block"]
+        assert blocked, "no block decision was recorded for the mutated tool"
+        name, result = blocked[-1]
+        assert name == "read_file"
+        assert result["reason"] == "blocked_drift"
+    finally:
+        handle.stop()
+
+
+def test_rug_pull_stays_blocked_on_every_subsequent_list(pipes):
+    # A single block is not enough: the client will keep asking, and the
+    # answer has to keep being no.
+    client_r, client_w, out_r, out_w = pipes
+    handle = run_proxy(PY, [RUGPULL_SERVER], "rug", make_rugpull_lockfile(), client_r, out_w)
+    try:
+        assert [t["name"] for t in _list_tools(client_w, out_r, 1)] == ["read_file"]
+        for req_id in (2, 3, 4):
+            assert [t["name"] for t in _list_tools(client_w, out_r, req_id)] == [], (
+                f"mutated definition leaked through on tools/list #{req_id}"
+            )
+    finally:
+        handle.stop()

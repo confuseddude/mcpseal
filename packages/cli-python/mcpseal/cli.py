@@ -30,6 +30,7 @@ from mcpseal.proxy import run_proxy
 from mcpseal.scan import scan as scan_cmd
 from mcpseal.ship_events import ship_events_best_effort
 from mcpseal.status import build_status_report, format_status_report
+from mcpseal.version import VERSION
 
 USAGE = "Unknown command: {command}\nRun `mcpseal help` to see every command."
 
@@ -68,6 +69,7 @@ OPTIONAL WORKSPACE (nothing above needs this)
                                      `install` wires your client to launch it automatically
 
   help, --help, -h              Show this message
+  version, --version, -v        Print the installed mcpseal version
 
 Nothing above ever leaves your machine unless you run `login`. Full docs: the repo this
 package was built from (README.md, docs/DEVELOPER_QUICKSTART.md)."""
@@ -315,6 +317,13 @@ def main(argv: list[str] | None = None) -> int:
 
     if command in ("help", "--help", "-h"):
         print(HELP_TEXT)
+        return 0
+
+    # Bare version string, nothing else on the line — the point is that
+    # `mcpseal --version` is pipeable into a bug report or a CI check
+    # without anyone having to parse prose around it.
+    if command in ("version", "--version", "-v"):
+        print(VERSION)
         return 0
 
     print(USAGE.format(command=command or "(none)"), file=sys.stderr)

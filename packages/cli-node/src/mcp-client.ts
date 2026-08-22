@@ -8,6 +8,7 @@
 // auditable (the trust-critical path). Spawning processes and speaking a
 // wire protocol is CLI/product plumbing, not part of that spec.
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { VERSION } from "./version.js";
 import { killProcessTree } from "./process-utils.js";
 
 export interface McpServerCommand {
@@ -132,7 +133,7 @@ export class McpStdioClient {
     const result = await this.request("initialize", {
       protocolVersion: "2024-11-05",
       capabilities: {},
-      clientInfo: { name: "mcpseal", version: "0.1.2" },
+      clientInfo: { name: "mcpseal", version: VERSION },
     });
     this.notify("notifications/initialized");
     return result;

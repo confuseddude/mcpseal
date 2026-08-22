@@ -11,6 +11,7 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import type { DriftReason } from "@mcpseal/cli-core";
+import { VERSION } from "./version.js";
 
 export interface McpsealEvent {
   eventId: string;
@@ -58,7 +59,7 @@ export function appendEvent(input: AppendEventInput, logPath: string = eventsLog
           ? `- ${input.oldDescription}\n+ ${input.newDescription}`
           : undefined,
       clientApp: input.clientApp ?? "unknown",
-      mcpsealVersion: "0.1.2",
+      mcpsealVersion: VERSION,
     };
     mkdirSync(path.dirname(logPath), { recursive: true });
     appendFileSync(logPath, JSON.stringify(event) + "\n", "utf-8");

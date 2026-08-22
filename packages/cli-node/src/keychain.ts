@@ -32,7 +32,26 @@ export function deleteSecret(account: string): void {
   const entry = new Entry(SERVICE, account);
   try {
     entry.deletePassword();
-  } catch {
-    // Already absent — deletion is idempotent.
+  } catch (err) {
+    // Already absent, or no keychain backend at all (a headless Linux box
+    // with no Secret Service) — in both cases nothing is stored, because
+    // setSecret() fails loudly rather than writing a fallback, so deletion
+    // is vacuously complete and idempotent.
+    //
+    // Deliberately narrow, mirroring cli-python's delete_secret(): a
+    // keychain that exists but is LOCKED can hold a real credential that
+    // was not deleted, and swallowing that would let someone believe they
+    // had logged out while the secret survives. That case must stay loud.
+    if (isLockedKeychainError(err)) throw err;
   }
+}
+
+// @napi-rs/keyring surfaces backend failures as plain Errors without
+// stable codes, so this matches on message text. Erring toward rethrowing
+// would break logout on machines with no keychain; erring toward
+// swallowing would hide a failed credential deletion. Locked/access-denied
+// wording is the signal that an entry exists but could not be removed.
+function isLockedKeychainError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /lock|denied|access|denied by policy|not permitted|authoriz/i.test(message);
 }

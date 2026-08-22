@@ -13,6 +13,7 @@ import time
 from typing import Any, TypedDict
 
 from mcpseal.process_utils import USE_SHELL, kill_process_tree
+from mcpseal.version import VERSION
 
 DEFAULT_TIMEOUT_S = 15.0
 
@@ -113,7 +114,7 @@ class McpStdioClient:
             {
                 "protocolVersion": "2024-11-05",
                 "capabilities": {},
-                "clientInfo": {"name": "mcpseal", "version": "0.1.2"},
+                "clientInfo": {"name": "mcpseal", "version": VERSION},
             },
         )
         self._notify("notifications/initialized")

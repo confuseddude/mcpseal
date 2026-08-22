@@ -23,6 +23,7 @@ import { getSecret, deleteSecret } from "./keychain.js";
 import { buildStatusReport, formatStatusReport } from "./status.js";
 import { runDoctor, formatDoctorReport } from "./doctor.js";
 import { classifyThrown, describeDriftReason, describePolicyOutcome, formatEventBlock } from "./events.js";
+import { VERSION } from "./version.js";
 
 const PRIVATE_KEY_ACCOUNT = "machine-private-key";
 
@@ -61,6 +62,7 @@ OPTIONAL WORKSPACE (nothing above needs this)
                                      \`install\` wires your client to launch it automatically
 
   help, --help, -h              Show this message
+  version, --version, -v        Print the installed mcpseal version
 
 Nothing above ever leaves your machine unless you run \`login\`. Full docs: the repo this
 package was built from (README.md, docs/DEVELOPER_QUICKSTART.md).`;
@@ -328,6 +330,15 @@ async function main(): Promise<void> {
     case "--help":
     case "-h": {
       console.log(HELP_TEXT);
+      return;
+    }
+    // Bare version string, nothing else on the line — the point is that
+    // `mcpseal --version` is pipeable into a bug report or a CI check
+    // without anyone having to parse prose around it.
+    case "version":
+    case "--version":
+    case "-v": {
+      console.log(VERSION);
       return;
     }
     default: {

@@ -9,6 +9,8 @@ import uuid
 from datetime import datetime, timezone
 from typing import TypedDict
 
+from mcpseal.version import VERSION
+
 
 class McpsealEvent(TypedDict, total=False):
     eventId: str
@@ -51,7 +53,7 @@ def append_event(
             "server": server,
             "tool": tool,
             "clientApp": client_app,
-            "mcpsealVersion": "0.1.2",
+            "mcpsealVersion": VERSION,
         }
         if observed_hash is not None:
             event["observedHash"] = observed_hash

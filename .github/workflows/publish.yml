@@ -12,7 +12,29 @@ on:
       - "v*"
 
 jobs:
+  # Publishing is irreversible: a version number can never be reused on
+  # either registry. Check the tag actually matches what the manifests say
+  # BEFORE either publish job runs, so a mistyped tag fails in 20 seconds
+  # instead of burning a version number.
+  verify-version:
+    name: Tag matches package version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare tag against both manifests
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME#v}"
+          npm_version=$(node -p "require('./packages/cli-node/package.json').version")
+          py_version=$(grep -m1 '^version' packages/cli-python/pyproject.toml | sed 's/.*"\(.*\)".*/\1/')
+          echo "tag=$tag  npm=$npm_version  pypi=$py_version"
+          if [ "$tag" != "$npm_version" ] || [ "$tag" != "$py_version" ]; then
+            echo "::error::Tag v$tag does not match cli-node ($npm_version) / cli-python ($py_version)."
+            exit 1
+          fi
+
   publish-npm:
+    needs: verify-version
     name: Publish to npm
     runs-on: ubuntu-latest
     permissions:
@@ -50,6 +72,7 @@ jobs:
         working-directory: packages/cli-node
 
   publish-pypi:
+    needs: verify-version
     name: Publish to PyPI
     runs-on: ubuntu-latest
     permissions:
@@ -63,16 +86,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -e ".[dev]" build
+      - run: pip install -e ".[dev]" build pytest-timeout
       # Real OS keychain integration (test_keychain.py, test_login.py,
       # test_machine_identity.py, test_ship_events.py) is skipped on CI --
-      # emulating a real desktop keychain session (gnome-keyring +
-      # SecretStorage) inside an ephemeral, headless container proved
-      # unreliable in practice: it both hung indefinitely and produced
-      # spurious failures partway through, on tests that pass instantly
-      # on a real OS. See CHECKLIST.md. Covered by manual verification
-      # across real OSes before each release instead.
-      - run: pytest -q
+      # a headless runner has no Secret Service. See CHECKLIST.md section 2.
+      #
+      # --timeout is load-bearing, not decoration: a blocking readline with
+      # no timeout once stalled this job for over two hours, and because
+      # pytest never reached its summary the 16 real failures behind the
+      # hang stayed invisible across five release attempts.
+      - run: pytest -q --timeout=120 --timeout-method=thread -rf
       - run: python -m build
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:

@@ -17,6 +17,7 @@ from mcpseal.config import McpsealConfig, config_path as default_config_path, re
 from mcpseal.http_client import HttpRequestFn, request as default_request
 from mcpseal.keychain import set_secret
 from mcpseal.machine_identity import load_or_create_machine_identity
+from mcpseal.version import VERSION
 
 API_KEY_ACCOUNT = "workspace-api-key"
 DEFAULT_INGEST_URL = os.environ.get("MCPSEAL_INGEST_URL", "http://127.0.0.1:8787")
@@ -85,7 +86,7 @@ def login(
                     "workspaceId": poll["workspaceId"],
                     "machineId": machine_id,
                     "publicKey": identity.public_key_hex,
-                    "mcpsealVersion": "0.1.2",
+                    "mcpsealVersion": VERSION,
                 }
             ),
         )
