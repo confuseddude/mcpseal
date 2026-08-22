@@ -63,7 +63,7 @@ export async function login(opts: LoginOptions = {}): Promise<LoginResult> {
     const regRes = await fetchImpl(`${ingestUrl}/v1/machines/register`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${poll.apiKeyToken}` },
-      body: JSON.stringify({ workspaceId: poll.workspaceId, machineId, publicKey: identity.publicKeyHex, mcpsealVersion: "0.1.1" }),
+      body: JSON.stringify({ workspaceId: poll.workspaceId, machineId, publicKey: identity.publicKeyHex, mcpsealVersion: "0.1.2" }),
     });
     if (!regRes.ok) throw new Error(`machine registration failed: HTTP ${regRes.status}`);
     const registration = (await regRes.json()) as { orgPublicKey: string | null };

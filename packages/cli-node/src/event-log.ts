@@ -58,7 +58,7 @@ export function appendEvent(input: AppendEventInput, logPath: string = eventsLog
           ? `- ${input.oldDescription}\n+ ${input.newDescription}`
           : undefined,
       clientApp: input.clientApp ?? "unknown",
-      mcpsealVersion: "0.1.1",
+      mcpsealVersion: "0.1.2",
     };
     mkdirSync(path.dirname(logPath), { recursive: true });
     appendFileSync(logPath, JSON.stringify(event) + "\n", "utf-8");

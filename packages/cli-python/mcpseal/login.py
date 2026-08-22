@@ -85,7 +85,7 @@ def login(
                     "workspaceId": poll["workspaceId"],
                     "machineId": machine_id,
                     "publicKey": identity.public_key_hex,
-                    "mcpsealVersion": "0.1.1",
+                    "mcpsealVersion": "0.1.2",
                 }
             ),
         )

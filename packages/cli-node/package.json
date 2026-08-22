@@ -1,6 +1,6 @@
 {
   "name": "mcpseal",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": false,
   "type": "module",
   "description": "MCP tool-integrity CLI - pins tool definitions and blocks rug pulls, free and local, zero account required until you opt in.",
