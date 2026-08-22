@@ -142,7 +142,7 @@ def test_records_block_decision_via_on_decision_callback(pipes):
         handle.stop()
 
 
-# CHECKLIST.md section 5: a rug pull that actually happens mid-session,
+# docs/CHECKLIST.md section 5: a rug pull that actually happens mid-session,
 # rather than a static hash mismatch arranged up front. The server below
 # serves the approved definition once, then mutates that tool's
 # description on every later tools/list -- one live process, one session,

@@ -230,7 +230,7 @@ Performed for real (not claimed without performing it): started real `ingest` + 
 - **Fleet page**: confirmed the real connected machine ID and version appear with status "connected".
 - **Machine connection state**: confirmed via Settings' "Connect a machine" flow (built in the prior session, re-exercised this session) reflecting a real approval.
 
-Not re-verified in the browser this session (unchanged by Track A, already verified in the prior session per `NIGHT_SHIFT_LOG.md`): Audit export page, Settings billing/API-key management, SSO/SCIM admin UI.
+Not re-verified in the browser this session (unchanged by Track A, already verified in the prior session per `docs/history/NIGHT_SHIFT_LOG.md`): Audit export page, Settings billing/API-key management, SSO/SCIM admin UI.
 
 All real state touched during this verification (keychain entries, `~/.mcpseal/config.json` and `events.jsonl`, the temp SQLite file, all spawned dev-server processes) was cleaned up afterward.
 

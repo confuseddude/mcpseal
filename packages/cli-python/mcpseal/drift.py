@@ -1,6 +1,6 @@
 # build-bible.md Part 2.4: the drift-detection state machine.
 #
-# Fail-closed contract (CLAUDE.md invariant 1, Tasks.md 1.6): this function
+# Fail-closed contract (CLAUDE.md invariant 1, docs/Tasks.md 1.6): this function
 # must NEVER raise. Any internal error (malformed observed tool, missing
 # server entry, etc.) is caught and converted into a "block" decision - an
 # uncaught exception could be caught-and-ignored by a careless caller

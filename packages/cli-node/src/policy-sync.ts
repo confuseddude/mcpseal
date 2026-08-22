@@ -82,7 +82,7 @@ export async function pullAndApplyPolicy(opts: PolicySyncOptions = {}): Promise<
   // The signature check: fail closed on every possible way this can go
   // wrong — malformed hex, wrong-length key, actual cryptographic mismatch.
   // verifyEd25519-equivalent inlined here (cli-node has no shared verify
-  // helper yet — see NIGHT_SHIFT_LOG.md for the parity note) but the same
+  // helper yet — see docs/history/NIGHT_SHIFT_LOG.md for the parity note) but the same
   // fail-to-false behavior as services/ingest/src/crypto.ts's verifyEd25519.
   let verified: boolean;
   try {

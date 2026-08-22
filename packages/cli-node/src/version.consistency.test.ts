@@ -1,4 +1,4 @@
-// CHECKLIST.md section 3: the version used to live in ~10 hand-edited
+// docs/CHECKLIST.md section 3: the version used to live in ~10 hand-edited
 // places across both languages. A release meant grepping for the old
 // number and hoping you caught them all — exactly the kind of thing that
 // drifts silently and then ships a package reporting the wrong version
@@ -35,7 +35,7 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-describe("version consistency (CHECKLIST.md section 3)", () => {
+describe("version consistency (docs/CHECKLIST.md section 3)", () => {
   it("src/version.ts matches cli-node/package.json", () => {
     const pkg = JSON.parse(readFileSync(path.join(cliNodeRoot, "package.json"), "utf-8"));
     expect(VERSION).toBe(pkg.version);

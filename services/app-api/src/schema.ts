@@ -5,7 +5,7 @@
 // defaults), since that file's own comment already promises "PRODUCTION
 // WIRING REQUIRED: replace with a real Postgres client, keeping these
 // function signatures" — this is that schema, staged ahead of the
-// runtime-adapter cutover (see NIGHT_SHIFT_LOG.md for why the cutover
+// runtime-adapter cutover (see docs/history/NIGHT_SHIFT_LOG.md for why the cutover
 // itself — swapping db.ts's SQLite calls for these tables — is left as a
 // separate, reviewed change rather than bundled in here: it touches every
 // query in the org/user/session/RBAC path, the single most

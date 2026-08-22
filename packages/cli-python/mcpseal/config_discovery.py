@@ -1,5 +1,5 @@
 # Mirrors packages/cli-node/src/config-discovery.ts. build-bible.md Part
-# 3.3 / Tasks.md 2.1: start with Claude Code's project-scope config,
+# 3.3 / docs/Tasks.md 2.1: start with Claude Code's project-scope config,
 # `.mcp.json` at the project root:
 #   { "mcpServers": { "<name>": { "command": "...", "args": [...] } } }
 from __future__ import annotations

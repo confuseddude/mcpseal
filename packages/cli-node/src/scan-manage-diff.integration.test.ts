@@ -35,7 +35,7 @@ beforeEach(() => {
   delete process.env.MCPSEAL_TEST_DESCRIPTION;
 });
 
-describe("scan (Part 3.2, Tasks.md 2.6)", () => {
+describe("scan (Part 3.2, docs/Tasks.md 2.6)", () => {
   it("reports allow for every tool when nothing has drifted", async () => {
     const dir = tmpProject();
     await init({ projectDir: dir });
@@ -59,7 +59,7 @@ describe("scan (Part 3.2, Tasks.md 2.6)", () => {
     expect(stable.result.decision).toBe("allow");
   }, 15_000);
 
-  it("CLI exit code is non-zero specifically on drift, zero when clean (Tasks.md 2.6 done-criteria)", async () => {
+  it("CLI exit code is non-zero specifically on drift, zero when clean (docs/Tasks.md 2.6 done-criteria)", async () => {
     const dir = tmpProject();
     await init({ projectDir: dir });
 
@@ -74,7 +74,7 @@ describe("scan (Part 3.2, Tasks.md 2.6)", () => {
   }, 20_000);
 });
 
-describe("approve / deny (Tasks.md 2.6)", () => {
+describe("approve / deny (docs/Tasks.md 2.6)", () => {
   it("approve re-hashes the current live tool and clears the drift block", async () => {
     const dir = tmpProject();
     await init({ projectDir: dir });
@@ -112,7 +112,7 @@ describe("approve / deny (Tasks.md 2.6)", () => {
   }, 15_000);
 });
 
-describe("diff (Tasks.md 2.6)", () => {
+describe("diff (docs/Tasks.md 2.6)", () => {
   it("returns no diffs when nothing has drifted", async () => {
     const dir = tmpProject();
     await init({ projectDir: dir });

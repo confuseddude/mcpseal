@@ -1,4 +1,4 @@
-# Mirrors packages/cli-node/src/scan.ts. build-bible.md Part 3.2, Tasks.md
+# Mirrors packages/cli-node/src/scan.ts. build-bible.md Part 3.2, docs/Tasks.md
 # 2.6: `mcpseal scan` — one-shot re-hash of all currently configured tools
 # against the lockfile, CI-friendly (non-zero exit on any drift/block).
 from __future__ import annotations

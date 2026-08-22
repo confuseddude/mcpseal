@@ -1,6 +1,6 @@
 # Mirrors packages/cli-node/src/mcp-client.ts: a minimal MCP stdio client,
 # newline-delimited JSON-RPC (empirically confirmed against a real reference
-# server — see Tasks.md 2.1). Lives in the CLI package, not mcpseal's
+# server — see docs/Tasks.md 2.1). Lives in the CLI package, not mcpseal's
 # hashing/drift core, for the same reason as the TS version: spawning
 # processes and speaking a wire protocol is CLI plumbing, not the
 # canonical, trust-critical hashing spec.

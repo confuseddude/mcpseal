@@ -1,6 +1,6 @@
 // Minimal MCP stdio client: spawns a server process and speaks newline-
 // delimited JSON-RPC (confirmed empirically against a real reference server
-// — see Tasks.md 2.1 verification notes; the MCP stdio transport is one
+// — see docs/Tasks.md 2.1 verification notes; the MCP stdio transport is one
 // JSON-RPC message per line, no Content-Length framing).
 //
 // This deliberately lives in cli-node, not cli-core: cli-core is the

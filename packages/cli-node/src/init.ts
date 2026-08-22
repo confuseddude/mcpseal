@@ -1,4 +1,4 @@
-// build-bible.md Part 3.2 / Tasks.md 2.1: `mcpseal init` discovers MCP
+// build-bible.md Part 3.2 / docs/Tasks.md 2.1: `mcpseal init` discovers MCP
 // servers from client configs, launches each once, hashes every tool, and
 // writes .mcp-lock.json with everything at status:approved
 // (trust-on-first-use, matching Part 2.3's example).

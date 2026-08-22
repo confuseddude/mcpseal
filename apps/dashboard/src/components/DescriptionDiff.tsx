@@ -1,4 +1,4 @@
-// The signature element of the Live Feed (see NIGHT_SHIFT_LOG.md's design
+// The signature element of the Live Feed (see docs/history/NIGHT_SHIFT_LOG.md's design
 // note): the old-vs-new tool description IS the product's core mechanism —
 // a rug pull is detected exactly because this text changed — so it's shown
 // as a real unified diff, not summarized away into a generic "details"

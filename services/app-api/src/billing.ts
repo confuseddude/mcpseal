@@ -3,7 +3,7 @@
 // stale local copy without webhook reconciliation." The provider interface
 // below is the real production shape; MockBillingProvider stands in when no
 // Stripe credentials are configured (documented, not hidden — see
-// NIGHT_SHIFT_LOG.md).
+// docs/history/NIGHT_SHIFT_LOG.md).
 import Stripe from "stripe";
 import { randomUUID } from "node:crypto";
 import type { Plan } from "./db.js";

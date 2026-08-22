@@ -1,4 +1,4 @@
-// build-bible.md Part 3.4 / 4.2, Tasks.md 2.5: local append-only event log
+// build-bible.md Part 3.4 / 4.2, docs/Tasks.md 2.5: local append-only event log
 // at ~/.mcpseal/events.jsonl. Purely local, no account required — the same
 // record shape gets shipped to the Control Plane later (Milestone 3) if the
 // user opts into a workspace, only the destination changes.

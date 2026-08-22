@@ -26,7 +26,7 @@ uvx mcpseal init      # Python
 
 ## Status
 
-Full command-line interface in both languages (`npx mcpseal` / `uvx mcpseal`), including the optional login/workspace path: `init`, `proxy`, `install`, `uninstall`, `scan`, `approve`, `deny`, `diff`, `status`, `doctor`, `login`, `logout`, `policy-pull`. See `docs/DEVELOPER_QUICKSTART.md` for a full walkthrough and `TRACK_A_TEST_REPORT.md` for what's been tested and how.
+Full command-line interface in both languages (`npx mcpseal` / `uvx mcpseal`), including the optional login/workspace path: `init`, `proxy`, `install`, `uninstall`, `scan`, `approve`, `deny`, `diff`, `status`, `doctor`, `login`, `logout`, `policy-pull`. See `docs/DEVELOPER_QUICKSTART.md` for a full walkthrough and `docs/history/TRACK_A_TEST_REPORT.md` for what's been tested and how.
 
 ## Quickstart (once published)
 
@@ -86,4 +86,4 @@ Currently supports Claude Code's project-scope config (`.mcp.json` with an `mcpS
 | `mcpseal logout` | Disconnect and clear local credentials |
 | `mcpseal policy-pull` | Fetch and verify a signed org policy, if connected |
 
-See `docs/build-bible.md` for the full architecture, `docs/DEVELOPER_QUICKSTART.md` for a hands-on walkthrough, and `Tasks.md` for the build checklist and progress log.
+See `docs/build-bible.md` for the full architecture, `docs/DEVELOPER_QUICKSTART.md` for a hands-on walkthrough, and `docs/Tasks.md` for the build checklist and progress log.

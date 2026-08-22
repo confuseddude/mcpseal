@@ -3,7 +3,7 @@ name: Publish
 # Fires only on a version tag push (e.g. v0.1.2), so a normal push to
 # master never accidentally publishes. Uses OIDC-based Trusted Publishing
 # for both npm and PyPI (id-token: write) -- no long-lived publish token
-# is stored anywhere for this to work. See CHECKLIST.md for the one-time
+# is stored anywhere for this to work. See docs/CHECKLIST.md for the one-time
 # npm/PyPI Trusted Publisher configuration this depends on.
 
 on:
@@ -95,7 +95,7 @@ jobs:
       - run: pip install -e ".[dev]" build pytest-timeout
       # Real OS keychain integration (test_keychain.py, test_login.py,
       # test_machine_identity.py, test_ship_events.py) is skipped on CI --
-      # a headless runner has no Secret Service. See CHECKLIST.md section 2.
+      # a headless runner has no Secret Service. See docs/CHECKLIST.md section 2.
       #
       # --timeout is load-bearing, not decoration: a blocking readline with
       # no timeout once stalled this job for over two hours, and because

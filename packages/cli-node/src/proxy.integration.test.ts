@@ -5,7 +5,7 @@
 // `mcpseal proxy <original command>` (build-bible.md Part 3.3) — no piece
 // of the pipe is mocked, only the "client" driving it is a test harness
 // instead of a literal Claude Code process (not practical to script
-// end-to-end in this environment; see Tasks.md 2.2 verification notes).
+// end-to-end in this environment; see docs/Tasks.md 2.2 verification notes).
 import { describe, expect, it, afterEach } from "vitest";
 import { PassThrough } from "node:stream";
 import path from "node:path";

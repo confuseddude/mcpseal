@@ -28,7 +28,7 @@ const ORIGINAL_CONFIG = `{
 }
 `;
 
-describe("install / uninstall (Part 3.3, Tasks.md 2.4)", () => {
+describe("install / uninstall (Part 3.3, docs/Tasks.md 2.4)", () => {
   it("install rewrites each server to route through mcpseal proxy <serverName> <original...>", () => {
     const dir = tmpDir();
     writeFileSync(path.join(dir, ".mcp.json"), ORIGINAL_CONFIG, "utf-8");

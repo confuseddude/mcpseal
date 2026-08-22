@@ -11,7 +11,7 @@ pytestmark = requires_real_keyring
 # Real OS keychain integration is unreliable inside headless/ephemeral CI
 # containers -- there's no real desktop session backing gnome-keyring's
 # SecretStorage on Linux runners, which causes both hangs and spurious
-# failures (see CHECKLIST.md). Covered by manual cross-OS verification
+# failures (see docs/CHECKLIST.md). Covered by manual cross-OS verification
 # before each release instead; this still runs locally on every OS.
 TEST_ACCOUNT = "test-account-mcpseal-pytest"
 

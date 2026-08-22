@@ -1,5 +1,5 @@
 # Mirrors packages/cli-node/src/event-log.ts. build-bible.md Part 3.4/4.2,
-# Tasks.md 2.5: local append-only event log at ~/.mcpseal/events.jsonl.
+# docs/Tasks.md 2.5: local append-only event log at ~/.mcpseal/events.jsonl.
 # Purely local, no account required (CLAUDE.md invariant 2).
 from __future__ import annotations
 

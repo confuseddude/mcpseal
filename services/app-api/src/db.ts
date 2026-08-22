@@ -1,6 +1,6 @@
 // build-bible.md Part 5.1: the Postgres domain model for orgs/users/teams/
 // workspaces/sessions/policies/subscriptions. Same local-dev-SQLite
-// approach as services/ingest/src/db.ts (see NIGHT_SHIFT_LOG.md Milestone
+// approach as services/ingest/src/db.ts (see docs/history/NIGHT_SHIFT_LOG.md Milestone
 // 3 for the rationale) — in dev this file points at the SAME physical
 // SQLite file ingest uses (mirrors "both services connect to the same
 // Postgres instance in production"), so a workspace/machine created via

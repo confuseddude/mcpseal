@@ -1,7 +1,7 @@
-# Mirrors packages/cli-node/src/diff.ts. build-bible.md Part 3.2, Tasks.md
+# Mirrors packages/cli-node/src/diff.ts. build-bible.md Part 3.2, docs/Tasks.md
 # 2.6: `mcpseal diff` — human-readable old-vs-new for any drifted tool.
 # Only descriptions can be text-diffed (the lockfile stores description,
-# not the full tool object — Tasks.md 2.3 Change Log). When the hash
+# not the full tool object — docs/Tasks.md 2.3 Change Log). When the hash
 # differs but the description text is identical, the change must be in
 # inputSchema — say so honestly rather than fabricate a schema diff.
 from __future__ import annotations

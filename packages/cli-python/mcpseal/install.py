@@ -1,5 +1,5 @@
 # Mirrors packages/cli-node/src/install.ts. build-bible.md Part 3.3,
-# Tasks.md 2.4: `mcpseal install` rewrites each server entry in the client
+# docs/Tasks.md 2.4: `mcpseal install` rewrites each server entry in the client
 # config so the client launches `mcpseal proxy <serverName> <original
 # command...>` instead of the original command directly. `mcpseal
 # uninstall` reverses it exactly.

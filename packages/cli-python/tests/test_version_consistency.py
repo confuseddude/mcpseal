@@ -1,6 +1,6 @@
 """Mirrors packages/cli-node/src/version.consistency.test.ts.
 
-CHECKLIST.md section 3: the version used to live in ~10 hand-edited
+docs/CHECKLIST.md section 3: the version used to live in ~10 hand-edited
 places across both languages, so a release meant grepping for the old
 number and hoping you caught them all. This test is the enforcement --
 it fails the build if the two languages' manifests drift apart, or if

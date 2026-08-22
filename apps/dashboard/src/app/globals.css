@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Design tokens — ops-console direction (see NIGHT_SHIFT_LOG.md Milestone 4):
+/* Design tokens — ops-console direction (see docs/history/NIGHT_SHIFT_LOG.md Milestone 4):
    deep slate-navy, not the generic near-black+neon-accent default. Severity
    color is information (red=high, amber=medium, blue=info), not decoration. */
 @theme {

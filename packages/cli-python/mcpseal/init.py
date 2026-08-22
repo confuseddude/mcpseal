@@ -1,4 +1,4 @@
-# Mirrors packages/cli-node/src/init.ts. build-bible.md Part 3.2 / Tasks.md
+# Mirrors packages/cli-node/src/init.ts. build-bible.md Part 3.2 / docs/Tasks.md
 # 2.1: `mcpseal init` discovers MCP servers, launches each once, hashes
 # every tool, writes .mcp-lock.json with everything at status:approved
 # (trust-on-first-use, matching Part 2.3's example).

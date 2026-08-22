@@ -1,5 +1,5 @@
 // Tests POST /v1/machines/connect — the Dashboard-authenticated caller for
-// the Part 6.2 device-flow "approve" step (see NIGHT_SHIFT_LOG.md Morning
+// the Part 6.2 device-flow "approve" step (see docs/history/NIGHT_SHIFT_LOG.md Morning
 // Action Items #4). Uses a real temp-file SQLite DB (not :memory:) so a
 // pending device_codes row can be inserted directly, mirroring exactly what
 // services/ingest's startDeviceFlow() would have written to the same

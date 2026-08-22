@@ -1,6 +1,6 @@
 // build-bible.md Part 2.4: the drift-detection state machine.
 //
-// Fail-closed contract (CLAUDE.md invariant 1, Tasks.md 1.6): this function
+// Fail-closed contract (CLAUDE.md invariant 1, docs/Tasks.md 1.6): this function
 // must NEVER throw. Any internal error (malformed observed tool, missing
 // server entry, etc.) is caught and converted into a `block` decision — a
 // thrown exception could be caught-and-ignored by a careless caller upstream
@@ -24,7 +24,7 @@ export interface DriftResult {
   oldHash?: string;
   newHash?: string;
   // Populated on blocked_drift so a human can see what actually changed —
-  // the hash alone isn't reversible (Tasks.md 2.3 Change Log).
+  // the hash alone isn't reversible (docs/Tasks.md 2.3 Change Log).
   oldDescription?: string;
   newDescription?: string;
   detail?: string;

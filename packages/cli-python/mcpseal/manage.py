@@ -1,7 +1,7 @@
 # Mirrors packages/cli-node/src/manage.ts. build-bible.md Part 3.2,
-# Tasks.md 2.6: `mcpseal approve <tool>` / `mcpseal deny <tool>`. Both
+# docs/Tasks.md 2.6: `mcpseal approve <tool>` / `mcpseal deny <tool>`. Both
 # re-fetch the tool's CURRENT live definition and write hash + description
-# into the lockfile with the new status (Tasks.md Change Log design note —
+# into the lockfile with the new status (docs/Tasks.md Change Log design note —
 # uniformly covers quarantined/unknown/drifted without separate code paths).
 from __future__ import annotations
 

@@ -106,7 +106,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if command == "proxy":
-        # Same syntax judgment call as cli-node (Tasks.md 2.2 Change Log):
+        # Same syntax judgment call as cli-node (docs/Tasks.md 2.2 Change Log):
         # `mcpseal proxy <serverName> <command> [args...]` — `install`
         # rewrites client configs to invoke it this way.
         if len(rest) < 2:

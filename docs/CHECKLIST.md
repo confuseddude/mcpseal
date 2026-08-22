@@ -63,7 +63,7 @@ Current `.github/workflows/parity.yml` only runs `cli-core`, `shared-types`, and
 ## 6. Nice-to-haves, not blockers
 
 - [x] `npm publish --provenance` — live as of `0.1.2`. npm serves `slsa.dev/provenance/v1` + npm publish attestations, and PyPI serves a PEP 740 attestation naming publisher `GitHub / confuseddude/mcpseal / publish.yml`. Both registries can now prove the artifact was built from a specific commit in a specific CI run — a useful thing for a supply-chain security tool to be able to demonstrate about itself.
-- [ ] A `--repair`/`--fix` mode for `doctor` (already on your roadmap in `USERFEATURES.md`)
+- [ ] A `--repair`/`--fix` mode for `doctor` (already on your roadmap in `docs/USERFEATURES.md`)
 - [ ] Broader MCP client support beyond `.mcp.json`-style config discovery
 
 ---

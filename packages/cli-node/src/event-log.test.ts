@@ -14,7 +14,7 @@ afterEach(() => {
   for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
 });
 
-describe("appendEvent / readEvents (Part 3.4 / 4.2, Tasks.md 2.5)", () => {
+describe("appendEvent / readEvents (Part 3.4 / 4.2, docs/Tasks.md 2.5)", () => {
   it("creates the log directory and appends a JSONL line", () => {
     const logPath = tmpLogPath();
     appendEvent({ type: "blocked_drift", server: "github", tool: "create_issue" }, logPath);

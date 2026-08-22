@@ -1,4 +1,4 @@
-# Mirrors packages/cli-node/src/process-utils.ts's finding (Tasks.md 2.2
+# Mirrors packages/cli-node/src/process-utils.ts's finding (docs/Tasks.md 2.2
 # verification notes): on Windows, spawning through a shell means the
 # tracked PID is the shell wrapper's, not the real server process's, so a
 # plain terminate()/kill() leaves the actual child running with its stdio

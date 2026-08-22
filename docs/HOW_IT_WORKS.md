@@ -159,7 +159,7 @@ The team/cloud side of this project is **not production-ready yet**. Here's exac
 | The secret key that protects your organization's signing key | ⚠️ Uses an insecure default unless you explicitly set a real one |
 | Single sign-on / auto-provisioning accounts (SSO/SCIM) | ⚠️ The plumbing exists, but the actual "log in with your company Google/Okta account" handshake isn't built |
 
-**In short: don't point this at the public internet or real company data yet.** It's built correctly and tested thoroughly for what exists, but several "this needs a real service behind it" pieces are still stand-ins on purpose, clearly marked in the code and in `NIGHT_SHIFT_LOG.md`.
+**In short: don't point this at the public internet or real company data yet.** It's built correctly and tested thoroughly for what exists, but several "this needs a real service behind it" pieces are still stand-ins on purpose, clearly marked in the code and in `docs/history/NIGHT_SHIFT_LOG.md`.
 
 ### If you still want to try the full team dashboard locally (safe — nothing leaves your machine)
 

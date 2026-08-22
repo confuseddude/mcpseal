@@ -5,7 +5,7 @@
 // taxonomy, not a shared runtime dependency, matching this repo's
 // existing precedent (cli-node and cli-python each independently mirror
 // cli-core's DriftReason rather than sharing code across languages/
-// runtimes — see Tasks.md 1.8). The one thing that must never drift
+// runtimes — see docs/Tasks.md 1.8). The one thing that must never drift
 // between the three copies is the set of (type -> code/severity)
 // mappings, since that's what "the same underlying security state is
 // understandable from both terminal and browser" actually means in

@@ -104,7 +104,7 @@ async function main(): Promise<void> {
       return;
     }
     case "proxy": {
-      // Judgment call (Tasks.md 2.2 Change Log): Part 3.2 shows `mcpseal
+      // Judgment call (docs/Tasks.md 2.2 Change Log): Part 3.2 shows `mcpseal
       // proxy <server>` but doesn't specify how the proxy learns which
       // lockfile entry to check against when it only receives the launch
       // command. Syntax here: `mcpseal proxy <serverName> <command> [args...]`

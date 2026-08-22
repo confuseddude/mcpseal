@@ -16,10 +16,10 @@ This is the working checklist. `CLAUDE.md` (repo root) is the rules. `docs/build
 ## STATUS
 
 ```
-Current milestone: post-6 hardening — all 6 milestones complete (see below); working through NIGHT_SHIFT_LOG.md's "Morning Action Items" gap list one item at a time under continued autonomous-execution authorization. Item 4 (Dashboard-authenticated device-flow approval) done 2026-08-19: `POST /v1/machines/connect` on services/app-api (session-auth, admin+ RBAC, cross-org-safe workspaceId resolution) directly approves a pending device_codes row in the shared physical DB file — no HTTP call to services/ingest, same "shared file, no cross-service import" pattern as workspaces/machines/api_keys. Dashboard Settings page has a real "Connect a machine" form wired to it. `mcpseal login` now works end-to-end without MCPSEAL_DEV_AUTO_APPROVE_DEVICE or a raw curl call. See NIGHT_SHIFT_LOG.md's new section for detail/tests/real e2e run.
+Current milestone: post-6 hardening — all 6 milestones complete (see below); working through docs/history/NIGHT_SHIFT_LOG.md's "Morning Action Items" gap list one item at a time under continued autonomous-execution authorization. Item 4 (Dashboard-authenticated device-flow approval) done 2026-08-19: `POST /v1/machines/connect` on services/app-api (session-auth, admin+ RBAC, cross-org-safe workspaceId resolution) directly approves a pending device_codes row in the shared physical DB file — no HTTP call to services/ingest, same "shared file, no cross-service import" pattern as workspaces/machines/api_keys. Dashboard Settings page has a real "Connect a machine" form wired to it. `mcpseal login` now works end-to-end without MCPSEAL_DEV_AUTO_APPROVE_DEVICE or a raw curl call. See docs/history/NIGHT_SHIFT_LOG.md's new section for detail/tests/real e2e run.
 Current step: item 3 (Postgres migration tooling, schema+migrations for both services, done — see below) and item 2 (Python CLI parity, free-tier command surface done — see below), both this session
 Last verified working (item 3): app-api's 12-table schema + ingest's 7-table schema (with the one real intentional difference — ingest's events.prev_hash/chain_hash/batch_signature are NOT NULL, matching its stricter SQLite constraint, plus the idx_events_workspace_ts index app-api's copy doesn't have) both applied cleanly to real Postgres containers with psql-verified shapes.
-Last verified working (item 2): packages/cli-python now has init/proxy/install/uninstall/scan/approve/deny/diff/status (login/policy-pull deliberately deferred, see NIGHT_SHIFT_LOG.md). 73 Python tests (was 39): 23 new unit + 3 real proxy integration (spawned Python stub MCP server through run_proxy over real OS pipes) + 8 real scan/init/manage/diff integration (mutable stub server, env-var-driven description rotation). Real end-to-end run through the actually-`pip install -e .`-installed `mcpseal` binary: init -> scan clean/drifted -> diff -> approve/deny -> install/uninstall round trip -> `mcpseal proxy` piping real JSON-RPC and blocking a drifted tool live, confirmed in the real local event log. Editable install uninstalled afterward to leave the machine's global Python clean. One real bug found and fixed via that e2e run: a pytest fixture closing a background thread's in-use pipe from the main thread deadlocked on Windows (test-only fix, not product code).
+Last verified working (item 2): packages/cli-python now has init/proxy/install/uninstall/scan/approve/deny/diff/status (login/policy-pull deliberately deferred, see docs/history/NIGHT_SHIFT_LOG.md). 73 Python tests (was 39): 23 new unit + 3 real proxy integration (spawned Python stub MCP server through run_proxy over real OS pipes) + 8 real scan/init/manage/diff integration (mutable stub server, env-var-driven description rotation). Real end-to-end run through the actually-`pip install -e .`-installed `mcpseal` binary: init -> scan clean/drifted -> diff -> approve/deny -> install/uninstall round trip -> `mcpseal proxy` piping real JSON-RPC and blocking a drifted tool live, confirmed in the real local event log. Editable install uninstalled afterward to leave the machine's global Python clean. One real bug found and fixed via that e2e run: a pytest fixture closing a background thread's in-use pipe from the main thread deadlocked on Windows (test-only fix, not product code).
 Full regression: 73 Python tests + 205 TS tests, all passing.
 Also done this session: real packaging verification for the Python CLI — `python -m build` produced a real sdist+wheel, installed into a fresh isolated venv with zero monorepo access, ran the installed `mcpseal` binary against a standalone (non-imported) stub MCP server successfully. Root README.md now documents both `npx`/`uvx` quickstarts in parallel. Build artifacts cleaned up afterward (already gitignored).
 
@@ -28,31 +28,31 @@ Re-verified packaging after adding keyring/cryptography deps: rebuilt sdist+whee
 Blockers: none — next candidates: (a) the reviewed db.ts/app.ts Postgres cutover itself (needs explicit human checkpoint per CLAUDE.md's security-sensitive-code rule, not to be done autonomously), (b) PyPI/npm publish itself (deliberately out of scope, irreversible/public), (c) a fleet-size visibility cap product decision (Morning Action Item #6, needs a real number from the user, not invented)
 
 Previous —
-Current milestone: post-6 hardening — all 6 milestones complete (see below); working through NIGHT_SHIFT_LOG.md's "Morning Action Items" gap list one item at a time under continued autonomous-execution authorization. Item 4 (Dashboard-authenticated device-flow approval) done 2026-08-19: `POST /v1/machines/connect` on services/app-api (session-auth, admin+ RBAC, cross-org-safe workspaceId resolution) directly approves a pending device_codes row in the shared physical DB file — no HTTP call to services/ingest, same "shared file, no cross-service import" pattern as workspaces/machines/api_keys. Dashboard Settings page has a real "Connect a machine" form wired to it. `mcpseal login` now works end-to-end without MCPSEAL_DEV_AUTO_APPROVE_DEVICE or a raw curl call. See NIGHT_SHIFT_LOG.md's new section for detail/tests/real e2e run.
+Current milestone: post-6 hardening — all 6 milestones complete (see below); working through docs/history/NIGHT_SHIFT_LOG.md's "Morning Action Items" gap list one item at a time under continued autonomous-execution authorization. Item 4 (Dashboard-authenticated device-flow approval) done 2026-08-19: `POST /v1/machines/connect` on services/app-api (session-auth, admin+ RBAC, cross-org-safe workspaceId resolution) directly approves a pending device_codes row in the shared physical DB file — no HTTP call to services/ingest, same "shared file, no cross-service import" pattern as workspaces/machines/api_keys. Dashboard Settings page has a real "Connect a machine" form wired to it. `mcpseal login` now works end-to-end without MCPSEAL_DEV_AUTO_APPROVE_DEVICE or a raw curl call. See docs/history/NIGHT_SHIFT_LOG.md's new section for detail/tests/real e2e run.
 Current step: none — between gap-list items
 Last verified working: 8 new app-api tests (RBAC, cross-org workspaceId rejection, expired/unknown code, case-insensitive code entry) + dashboard tsc --noEmit clean + a real end-to-end run (real ingest + app-api servers sharing a temp DB file, real device/start, real dev-login, real POST /v1/machines/connect, real poll returning a real API key scoped to the correct workspace). Full regression: 205 TS tests (was 197) + 39 Python tests, all passing.
 Blockers: none
 
 Previous —
-Current milestone: 6 — MILESTONE 6 COMPLETE. Night Shift objective (Milestones 3-6) finished. Signed policy distribution (org ed25519 keypair, AES-256-GCM-encrypted private key, client-side pinning + fail-closed verification via new `mcpseal policy-pull`), tamper-evident audit hash chain with a standalone auditor verification script, and Enterprise SSO config + SCIM provisioning (explicitly not hand-rolled SAML/OIDC). An adversarial security review of this milestone found 2 low-severity issues (unbounded ts field, SCIM domain-validation gap); both fixed with regression tests in-session. Full regression: 197 TS tests + 39 Python tests (236 total), all passing. See NIGHT_SHIFT_LOG.md for full detail, every mock/stub, and the Morning Action Items list of what still needs real production credentials/infrastructure.
+Current milestone: 6 — MILESTONE 6 COMPLETE. Night Shift objective (Milestones 3-6) finished. Signed policy distribution (org ed25519 keypair, AES-256-GCM-encrypted private key, client-side pinning + fail-closed verification via new `mcpseal policy-pull`), tamper-evident audit hash chain with a standalone auditor verification script, and Enterprise SSO config + SCIM provisioning (explicitly not hand-rolled SAML/OIDC). An adversarial security review of this milestone found 2 low-severity issues (unbounded ts field, SCIM domain-validation gap); both fixed with regression tests in-session. Full regression: 197 TS tests + 39 Python tests (236 total), all passing. See docs/history/NIGHT_SHIFT_LOG.md for full detail, every mock/stub, and the Morning Action Items list of what still needs real production credentials/infrastructure.
 Current step: none — Night Shift objective complete
 Last verified working: 6.x — 16 policy-signing tests, 15 hash-chain tests, 10 SSO/SCIM tests, real end-to-end login→sign→pull run, real verify-audit.mjs run against a real and a real-tampered export, adversarial security review with both findings fixed.
 Blockers: none
 
 Previous milestone —
-Current milestone: 5 — MILESTONE 5 COMPLETE. Stripe billing (real SDK integration behind a provider interface, mock mode active until real Stripe credentials are configured), retention-tier gating (7/30/unlimited days by plan), pricing page, Settings billing UI wired end-to-end and verified in a real browser (Upgrade to Team actually flips the plan live). See NIGHT_SHIFT_LOG.md. Proceeding directly to Milestone 6 (Enterprise) — the most security-sensitive milestone, extra care on signature verification per CLAUDE.md.
+Current milestone: 5 — MILESTONE 5 COMPLETE. Stripe billing (real SDK integration behind a provider interface, mock mode active until real Stripe credentials are configured), retention-tier gating (7/30/unlimited days by plan), pricing page, Settings billing UI wired end-to-end and verified in a real browser (Upgrade to Team actually flips the plan live). See docs/history/NIGHT_SHIFT_LOG.md. Proceeding directly to Milestone 6 (Enterprise) — the most security-sensitive milestone, extra care on signature verification per CLAUDE.md.
 Current step: none — milestone boundary
 Last verified working: 5.x — 11 new billing tests (RBAC, fail-closed webhook signature verification, Stripe-as-source-of-truth state transitions including soft-overage on payment failure) + full real browser walkthrough of the Upgrade flow. Full regression: 144 TS tests + 39 Python tests, all passing.
 Blockers: none
 
 Previous milestone —
-Current milestone: 4 — MILESTONE 4 COMPLETE. App API (session auth, server-side RBAC, cross-org isolation), Next.js dashboard (Live Feed/Fleet/Policy/Audit/Settings, dark ops-console design per frontend-design skill). Built under Night Shift autonomous-execution authorization; see NIGHT_SHIFT_LOG.md for full detail, mocks, and the two real bugs found and fixed via actual browser testing (missing CORS, device-flow workspace-binding timing). Proceeding directly to Milestone 5.
+Current milestone: 4 — MILESTONE 4 COMPLETE. App API (session auth, server-side RBAC, cross-org isolation), Next.js dashboard (Live Feed/Fleet/Policy/Audit/Settings, dark ops-console design per frontend-design skill). Built under Night Shift autonomous-execution authorization; see docs/history/NIGHT_SHIFT_LOG.md for full detail, mocks, and the two real bugs found and fixed via actual browser testing (missing CORS, device-flow workspace-binding timing). Proceeding directly to Milestone 5.
 Current step: none — milestone boundary
 Last verified working: 4.x — 16 new app-api tests (RBAC + 3 explicit cross-org isolation tests) + full real browser walkthrough of every dashboard page against live app-api/ingest/dashboard servers, including a real mcpseal login + real rug-pull block appearing correctly in the Live Feed with the diff rendered. Full regression: 133 TS tests + 39 Python tests, all passing. All real machine state touched during e2e testing (keychain, config, temp DBs, dev server processes) cleaned up afterward.
 Blockers: none
 
 Previous milestone —
-Current milestone: 3 — MILESTONE 3 COMPLETE. Ingest API + minimal machine/workspace registration (services/ingest, SQLite dev backend standing in for Postgres+ClickHouse/Timescale, documented in NIGHT_SHIFT_LOG.md), mcpseal login (device flow + OS keychain + ed25519 machine identity), opt-in signed event shipping from the local event log. Built under explicit Night Shift autonomous-execution authorization (no per-milestone confirmation stop) — see NIGHT_SHIFT_LOG.md for full detail, mocks, and production-wiring gaps. Proceeding directly to Milestone 4 per that authorization.
+Current milestone: 3 — MILESTONE 3 COMPLETE. Ingest API + minimal machine/workspace registration (services/ingest, SQLite dev backend standing in for Postgres+ClickHouse/Timescale, documented in docs/history/NIGHT_SHIFT_LOG.md), mcpseal login (device flow + OS keychain + ed25519 machine identity), opt-in signed event shipping from the local event log. Built under explicit Night Shift autonomous-execution authorization (no per-milestone confirmation stop) — see docs/history/NIGHT_SHIFT_LOG.md for full detail, mocks, and production-wiring gaps. Proceeding directly to Milestone 4 per that authorization.
 Current step: none — milestone boundary
 Last verified working: 3.x — 14 new ingest tests + 15 new cli-node tests (keychain/machine-identity/login/ship-events), including the CLAUDE.md invariant-2 test that shipEvents() makes zero network calls with no login. Full real e2e run: real login against a real dev ingest server, real rug-pull block, signed shipment independently verified in the event store with correct old/new description diff. Full regression: 117 TS tests + 39 Python tests, all passing. Test/credential state left on the machine by the e2e run was cleaned up afterward.
 Blockers: none
@@ -151,7 +151,7 @@ Blockers: none
 
 ---
 
-## Milestone 3 — Ingest + Event Store — COMPLETE (see NIGHT_SHIFT_LOG.md for full detail)
+## Milestone 3 — Ingest + Event Store — COMPLETE (see docs/history/NIGHT_SHIFT_LOG.md for full detail)
 
 Reference: `build-bible.md` Part 4, Part 5.2, Part 6.2.
 
@@ -162,7 +162,7 @@ Reference: `build-bible.md` Part 4, Part 5.2, Part 6.2.
 
 **Milestone 3 exit criteria — met:** a real login against a real dev ingest server was run end-to-end, and the Milestone 2 rug-pull demo was re-run with shipping live — the block fired locally exactly as before, and the signed event was independently verified present in the ingest event store with the correct old/new description diff. 14 new ingest tests + 15 new cli-node tests passing, full regression (117 TS + 39 Python) green.
 
-## Milestone 4 — App API + Auth + Dashboard skeleton — COMPLETE (see NIGHT_SHIFT_LOG.md for full detail)
+## Milestone 4 — App API + Auth + Dashboard skeleton — COMPLETE (see docs/history/NIGHT_SHIFT_LOG.md for full detail)
 
 Reference: Part 4.1, Part 6, Part 7.
 
@@ -174,7 +174,7 @@ Reference: Part 4.1, Part 6, Part 7.
 
 **Milestone 4 exit criteria — met:** a Security Lead can log in and watch blocks stream in across machines (real browser walkthrough, not a mockup). Two real bugs found via that testing (missing CORS, device-flow workspace-binding timing bug) were fixed, not glossed over. 16 new app-api tests + full regression (133 TS + 39 Python) passing.
 
-## Milestone 5 — Billing + Team tier — COMPLETE (see NIGHT_SHIFT_LOG.md for full detail)
+## Milestone 5 — Billing + Team tier — COMPLETE (see docs/history/NIGHT_SHIFT_LOG.md for full detail)
 
 Reference: Part 10.
 
@@ -186,7 +186,7 @@ Reference: Part 10.
 
 **Milestone 5 exit criteria — met:** a self-serve credit-card upgrade unlocks 30-day retention (real Stripe checkout path fully implemented; verified end-to-end via mock mode since no live Stripe account exists in this environment). 11 new tests + full regression (144 TS + 39 Python) passing.
 
-## Milestone 6 — Enterprise — COMPLETE (see NIGHT_SHIFT_LOG.md for full detail; most security-sensitive milestone)
+## Milestone 6 — Enterprise — COMPLETE (see docs/history/NIGHT_SHIFT_LOG.md for full detail; most security-sensitive milestone)
 
 Reference: Part 8, Part 9.
 

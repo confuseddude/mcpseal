@@ -1,5 +1,5 @@
-// build-bible.md Part 3.2, Tasks.md 2.6: `mcpseal approve <tool>` /
-// `mcpseal deny <tool>`. Design (Tasks.md Change Log): both re-fetch the
+// build-bible.md Part 3.2, docs/Tasks.md 2.6: `mcpseal approve <tool>` /
+// `mcpseal deny <tool>`. Design (docs/Tasks.md Change Log): both re-fetch the
 // tool's CURRENT live definition from the server and write that hash +
 // description into the lockfile with the new status — "approve" and "deny"
 // both mean "trust/distrust exactly what the server reports right now,"

@@ -1,5 +1,5 @@
 // build-bible.md Part 3.3: MCP clients launch servers from a config file
-// specifying `command` and `args`. Task 2.1 (Tasks.md): "start with one
+// specifying `command` and `args`. Task 2.1 (docs/Tasks.md): "start with one
 // client — Claude Code's config — expand later."
 //
 // Claude Code's project-scope config is `.mcp.json` at the project root:

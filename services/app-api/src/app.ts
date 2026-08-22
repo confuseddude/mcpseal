@@ -219,7 +219,7 @@ export function buildApp(dbPath: string): FastifyInstance {
   // --- Connect a machine (Part 6.2's device-flow "approve" step, called
   // for real by an authenticated Dashboard session rather than the
   // dev-auto-approve env var — closes the gap flagged in
-  // NIGHT_SHIFT_LOG.md's Morning Action Items #4) ---
+  // docs/history/NIGHT_SHIFT_LOG.md's Morning Action Items #4) ---
   const connectMachineSchema = z.object({ userCode: z.string().min(1).max(32), workspaceId: z.string().uuid().optional() });
   app.post("/v1/machines/connect", async (req, reply) => {
     const ctx = await currentUser(req);
@@ -343,7 +343,7 @@ export function buildApp(dbPath: string): FastifyInstance {
   // the SCIM user-provisioning contract, which is genuinely simple enough
   // to implement for real. The actual login handshake (validating a SAML
   // assertion or OIDC token from Okta/Entra/Ping) is NOT implemented and
-  // must come from a real WorkOS integration — see NIGHT_SHIFT_LOG.md.
+  // must come from a real WorkOS integration — see docs/history/NIGHT_SHIFT_LOG.md.
   const ssoConfigSchema = z.object({ provider: z.enum(["okta", "entra", "ping", "generic-saml", "generic-oidc"]), domain: z.string().min(1), enabled: z.boolean() });
   app.put("/v1/enterprise/sso", async (req, reply) => {
     const ctx = await currentUser(req);

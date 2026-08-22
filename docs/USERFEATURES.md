@@ -104,7 +104,7 @@ Every command that can fail tells you **what happened, why, what it means, and t
 ## Upcoming features
 
 ### Already built, not yet deployed (waiting on Track B infrastructure)
-These aren't roadmap promises — the code exists, is tested, and is sitting behind the Control Plane deployment described in `DEPLOYMENT_PLAN.md`:
+These aren't roadmap promises — the code exists, is tested, and is sitting behind the Control Plane deployment described in `docs/DEPLOYMENT_PLAN.md`:
 - The full team dashboard: Live Feed, Fleet view, Policy management, Settings, billing
 - Real WorkOS-backed human login (replacing today's local dev-login stand-in)
 - Real Stripe billing (Team/Enterprise checkout, already wired end-to-end against mock mode)

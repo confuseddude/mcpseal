@@ -1,4 +1,4 @@
-// Found via real end-to-end testing (Tasks.md 2.2 verification notes), not
+// Found via real end-to-end testing (docs/Tasks.md 2.2 verification notes), not
 // spec-driven: on Windows, spawning with `shell: true` runs the command
 // through cmd.exe, so child.pid is cmd.exe's PID — child.kill() only kills
 // the shell wrapper, leaving the actual server process (e.g. a `npx`-spawned

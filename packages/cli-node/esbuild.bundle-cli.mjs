@@ -1,4 +1,4 @@
-// Real publishing blocker found via testing (Tasks.md 2.7 verification
+// Real publishing blocker found via testing (docs/Tasks.md 2.7 verification
 // notes): `pnpm pack` rewrites the workspace:^ deps on @mcpseal/cli-core and
 // @mcpseal/shared-types to plain semver ranges (e.g. ^0.1.0) — but those
 // packages are internal-only and were never published to npm, so a real
