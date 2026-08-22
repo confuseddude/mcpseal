@@ -32,7 +32,11 @@ jobs:
       # step succeeded (signed + logged to sigstore) but the actual
       # authenticated PUT 404'd -- npm silently treated it as
       # unauthenticated rather than erroring on the OIDC exchange itself.
-      - run: npm install -g npm@latest
+      # Pinned to the 11.x line, not @latest -- npm 12 raised its own
+      # engines requirement to Node >=22.22.2/24.15.0/26, which rejects
+      # the install outright on node-version 20 (EBADENGINE). npm
+      # 11.5.1+ already has the OIDC fix above and stays Node-20-safe.
+      - run: npm install -g npm@^11
       - run: pnpm install --frozen-lockfile
       # mcpseal (cli-node) depends on the private workspace packages
       # @mcpseal/cli-core and @mcpseal/shared-types at build/type-check
