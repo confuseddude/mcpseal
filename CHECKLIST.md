@@ -2,15 +2,16 @@
 
 Where things actually stand today, what's left before calling Track A "done," and the full steps for GitHub-based Trusted Publishing. Track B (Control Plane/dashboard/backend) is intentionally out of scope here — revisit after funding, per CLAUDE.md.
 
-Status snapshot as of `0.1.2` (in flight): GitHub repo is live at github.com/confuseddude/mcpseal, GitHub Actions Trusted Publishing is wired up for both npm and PyPI (OIDC, zero stored tokens once old credentials are revoked).
+Status snapshot as of `0.1.2` (**published**): GitHub repo live at github.com/confuseddude/mcpseal. **Trusted Publishing is done and proven end-to-end** — `0.1.2` shipped to both npm and PyPI from GitHub Actions with zero stored tokens (repo has 0 Actions secrets, and no workflow references one). Both artifacts carry verifiable attestations: npm `slsa.dev/provenance/v1`, PyPI publisher `GitHub / confuseddude/mcpseal / publish.yml`. Old manual npm/PyPI tokens revoked.
 
 ---
 
 ## 0. Immediate/security debt (do these first, cheap)
 
-- [ ] **Rotate the npm token that leaked into this session's transcript.** Still outstanding — flagged twice now. Low probability, high blast radius (someone could publish malicious versions under your account).
-- [ ] **Rotate/regenerate the PyPI token too, out of caution** — it was handled more carefully (never printed), but it's cheap insurance to rotate anything that touched a chat session at all.
-- [ ] Confirm neither token is sitting in a `.npmrc`/`.pypirc` anywhere that could get accidentally committed. Check `.gitignore` covers them (it should, but verify — a stray `git add -A` in a Downloads folder is exactly how these leak).
+- [x] **Rotate/revoke the npm token that leaked into a session transcript.** Deleted. Nothing depends on it any more — publishing is OIDC-only.
+- [x] **Rotate/revoke the PyPI token too.** Deleted.
+- [ ] **Clear the local dotfiles — still outstanding.** `~/.npmrc` and `~/.pypirc` both still exist on disk and still contain a credential line each. The tokens they hold are revoked, so they're dead strings, but a plaintext credential in a dotfile is exactly what invariant 6 forbids and there is no longer any reason for either file to exist. Verified neither is tracked by git (`git ls-files` clean), so nothing leaked into the repo.
+- [ ] Add `.npmrc`/`.pypirc` to `.gitignore` as belt-and-braces — they live in `$HOME` not the repo, so the risk is low, but it's free insurance against a stray `git add -A`.
 
 ## 1. Ship a real GitHub repo (blocks almost everything else below)
 
@@ -18,7 +19,7 @@ Status snapshot as of `0.1.2` (in flight): GitHub repo is live at github.com/con
 - [x] GitHub Actions Trusted Publishing (`.github/workflows/publish.yml`) configured and validated end-to-end for both npm and PyPI.
 - [ ] Add repo topics/description for discoverability (`mcp`, `model-context-protocol`, `security`, `cli`, `supply-chain`).
 - [ ] Badges on the npm/PyPI package pages linking back to the repo (huge trust signal for a security tool — right now your published packages point at nothing). Add repo link to both package READMEs too.
-- [ ] Once satisfied with Trusted Publishing, revoke the manual npm/PyPI tokens used for the 0.1.0/0.1.1 publishes and clear local `~/.npmrc`/`~/.pypirc`.
+- [x] Revoke the manual npm/PyPI tokens used for the 0.1.0/0.1.1 publishes. Done — see Section 0 for the remaining local-dotfile cleanup.
 
 ## 2. CI gaps
 
@@ -42,7 +43,7 @@ Current `.github/workflows/parity.yml` only runs `cli-core`, `shared-types`, and
 - [ ] **`mcpseal --version` / `-v`.** Doesn't exist right now — checked directly, only `help`/`--help`/`-h` are wired. This is the second most instinctive thing after `--help` for anyone debugging "which version do I actually have installed," especially once you're fielding bug reports from strangers.
 - [ ] **`CHANGELOG.md`.** You shipped `0.1.0` → `0.1.1` with a real, user-facing fix (the `--help` bug) and nobody upgrading has any way to know that from the package page. Doesn't need to be fancy — Keep a Changelog format is fine.
 - [ ] **A release checklist or script**, even a simple shell script, that does: bump version → run version-consistency test → run both full suites → build both packages → publish both → tag the commit (`git tag v0.1.1`) → smoke-test install from the real registries in a throwaway temp dir. You did all of this by hand this week; scripting it removes the chance of skipping the verification step under time pressure next time.
-- [ ] Push git tags for `v0.1.0` and `v0.1.1` retroactively once the GitHub repo exists, so the release history isn't invisible.
+- [x] Push git tags for `v0.1.0` and `v0.1.1` retroactively — done, all three (`v0.1.0`, `v0.1.1`, `v0.1.2`) are on origin.
 
 ## 4. Docs / trust signals for a security tool specifically
 
@@ -59,7 +60,7 @@ Current `.github/workflows/parity.yml` only runs `cli-core`, `shared-types`, and
 
 ## 6. Nice-to-haves, not blockers
 
-- [ ] `npm publish --provenance` (requires Trusted Publishing from GitHub Actions — see Section below — gives consumers a verifiable "built from this exact commit, in this exact CI run" attestation, visible on the npm package page as a badge)
+- [x] `npm publish --provenance` — live as of `0.1.2`. npm serves `slsa.dev/provenance/v1` + npm publish attestations, and PyPI serves a PEP 740 attestation naming publisher `GitHub / confuseddude/mcpseal / publish.yml`. Both registries can now prove the artifact was built from a specific commit in a specific CI run — a useful thing for a supply-chain security tool to be able to demonstrate about itself.
 - [ ] A `--repair`/`--fix` mode for `doctor` (already on your roadmap in `USERFEATURES.md`)
 - [ ] Broader MCP client support beyond `.mcp.json`-style config discovery
 
@@ -67,7 +68,9 @@ Current `.github/workflows/parity.yml` only runs `cli-core`, `shared-types`, and
 
 # GitHub-Based Trusted Publishing — Full Setup
 
-This replaces long-lived npm/PyPI tokens (the ones sitting in your local `.npmrc`/`.pypirc` right now, one of which already leaked into a chat transcript) with short-lived OIDC tokens minted per-CI-run. No secret ever sits on disk or in a session again. This is the single highest-leverage fix for the credential-handling problems from this week.
+> **STATUS: DONE.** Completed and proven end-to-end with the `0.1.2` release. Kept below as reference for how it was set up and what went wrong. **The YAML in Step 2 is the original draft and is missing five fixes** — see "Bugs hit on the way" at the end; treat the live `.github/workflows/publish.yml` as authoritative, not this snippet.
+
+This replaces long-lived npm/PyPI tokens with short-lived OIDC tokens minted per-CI-run. No secret ever sits on disk or in a session again.
 
 ## Prerequisites
 - A GitHub repo for this project (Section 1 above — must exist first, both flows below need it)
@@ -177,7 +180,19 @@ Watch the Actions tab. If both jobs go green, check the npm and PyPI package pag
 
 ## Step 6 — Clean up old credentials
 
-- [ ] `npm token revoke <token-id>` for the granular token used this week (list them with `npm token list`)
-- [ ] Delete the PyPI API token from account settings
-- [ ] Delete or blank `~/.npmrc` and `~/.pypirc` — nothing should need them once CI publishes for you
+- [x] Revoke the granular npm token used this week
+- [x] Delete the PyPI API token from account settings
+- [ ] Delete or blank `~/.npmrc` and `~/.pypirc` — **still present on disk, one credential line each** (revoked, but should not linger)
 - [ ] Confirm a manual `npm publish` from your machine now fails (proves the token is actually gone, not just unused)
+
+## Bugs hit on the way (so the next person doesn't repeat them)
+
+Seven tag-pushes to get green. Recorded because most were not obvious:
+
+1. **`pnpm/action-setup@v4`: "Multiple versions of pnpm specified."** Pinning `version:` in `with:` while `package.json` also sets `packageManager` is ambiguous *even when they agree*. Drop the `with:` block.
+2. **`Cannot find module '@mcpseal/cli-core'`.** `pnpm --filter mcpseal build` does not build workspace deps first. Build `shared-types` then `cli-core` explicitly.
+3. **`npm publish` signs provenance, then 404s on the registry PUT.** OIDC registry auth needs npm CLI ≥ 11.5.1; provenance *signing* is older and works on the bundled npm, so it looks like it's working right up until the PUT. Old npm falls through to an unauthenticated request instead of erroring on the OIDC exchange — the 404 is misleading.
+4. **`npm install -g npm@latest` fails `EBADENGINE`.** npm 12 requires Node `^22.22.2 || ^24.15.0 || >=26`, but the job pins Node 20. Pin `npm@^11` (has the OIDC fix, still Node-20-safe) rather than chasing `@latest`.
+5. **`npm publish` 422: `repository.url is ""`.** Provenance validation requires `package.json` `repository.url` to match the building repo; the field was absent entirely. **A 422 here is good news** — it means OIDC auth succeeded and only the payload was rejected. A 404 means auth failed; a 422 means it didn't.
+6. **Python suite failed 16 tests and hung for hours on Linux** — a real product bug, not CI flakiness. See Section 2.
+7. **Reading CI logs.** `GET /actions/jobs/<id>/logs` returns 403 without admin rights and WebFetch can't see step-level detail on the HTML page. The stored git credential works: `printf "protocol=https\nhost=github.com\n\n" | git credential fill` → use the password as a Bearer token. Better still, **reproduce the runner in Docker** (`python:3.11-slim`, `-e CI=true`) — ~90s per iteration instead of ~10min per tag push, and it found bug 6 immediately after five CI rounds had missed it.
