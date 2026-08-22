@@ -112,10 +112,16 @@ echo "  cli-python: $pybuilt"
 # several releases while every Windows test passed). Check if we can.
 if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
   step "Running the Python suite on Linux (docker)"
-  docker run --rm -e CI=true \
-    -v "$REPO_ROOT/packages/cli-python:/src/cli-python:ro" \
-    -v "$REPO_ROOT/packages/cli-node:/src/cli-node:ro" \
-    -v "$REPO_ROOT/test-vectors:/src/test-vectors:ro" \
+  # Docker Desktop on Windows needs a Windows-style host path: Git Bash's
+  # $PWD is /c/Users/... which it silently fails to resolve, mounting
+  # nothing. `pwd -W` prints C:/Users/... under Git Bash and doesn't
+  # exist elsewhere, so fall back to the plain path on Linux/macOS.
+  # MSYS_NO_PATHCONV stops Git Bash rewriting the container-side paths.
+  HOST_ROOT="$(pwd -W 2>/dev/null || printf '%s' "$REPO_ROOT")"
+  MSYS_NO_PATHCONV=1 docker run --rm -e CI=true \
+    -v "$HOST_ROOT/packages/cli-python:/src/cli-python:ro" \
+    -v "$HOST_ROOT/packages/cli-node:/src/cli-node:ro" \
+    -v "$HOST_ROOT/test-vectors:/src/test-vectors:ro" \
     python:3.11-slim bash -lc '
       mkdir -p /work/packages/cli-node/src
       cp -r /src/cli-python /work/packages/cli-python
