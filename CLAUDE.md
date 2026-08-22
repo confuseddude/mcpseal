@@ -1,10 +1,10 @@
 # CLAUDE.md
 
-This file is read automatically at the start of every Claude Code session in this repo. Follow it exactly. The full architecture spec lives in `build-bible.md` at the repo root — **read the relevant Part of that file before writing code for any component**, don't work from memory of a prior session.
+This file is read automatically at the start of every Claude Code session in this repo. Follow it exactly. The full architecture spec lives in `docs/build-bible.md` — **read the relevant Part of that file before writing code for any component**, don't work from memory of a prior session.
 
 ## What this project is
 
-`mcpseal` — an MCP tool-integrity CLI (free, local, zero-infra) plus a hosted Control Plane (Team/Enterprise SaaS) that gives orgs cross-agent visibility into blocked attacks and a tamper-evident audit trail. Free tier = distribution engine. Paid tier = the thing a single machine structurally cannot show. See `build-bible.md` Part 0–1 before touching anything if this is a new session and that context isn't already loaded.
+`mcpseal` — an MCP tool-integrity CLI (free, local, zero-infra) plus a hosted Control Plane (Team/Enterprise SaaS) that gives orgs cross-agent visibility into blocked attacks and a tamper-evident audit trail. Free tier = distribution engine. Paid tier = the thing a single machine structurally cannot show. See `docs/build-bible.md` Part 0–1 before touching anything if this is a new session and that context isn't already loaded.
 
 ## Non-negotiable invariants
 
@@ -32,7 +32,7 @@ If a task I ask for would violate one of these, say so and propose the compliant
 
 ## Repo structure
 
-Follow `build-bible.md` Part 11 exactly:
+Follow `docs/build-bible.md` Part 11 exactly:
 
 ```
 packages/{cli-core, cli-node, cli-python, shared-types}
@@ -47,22 +47,24 @@ Don't invent new top-level directories without checking with me first.
 
 ## Build order — where we actually are
 
-Work through `build-bible.md` Part 12's milestones **in order**. Before starting any milestone, tell me which one you're starting and confirm the prior milestone's deliverable is actually working (don't assume; ask me to verify or check for tests/artifacts). Do not jump ahead to Enterprise features (Milestone 6) while Milestone 2 (the proxy) is still unproven — the free CLI has to work standalone before anything else matters.
+Work through `docs/build-bible.md` Part 12's milestones **in order**. Before starting any milestone, tell me which one you're starting and confirm the prior milestone's deliverable is actually working (don't assume; ask me to verify or check for tests/artifacts). Do not jump ahead to Enterprise features (Milestone 6) while Milestone 2 (the proxy) is still unproven — the free CLI has to work standalone before anything else matters.
 
-Current milestone: **[UPDATE THIS LINE MANUALLY AS WE PROGRESS — e.g. "Milestone 2: proxy + CLI, wiring mcpseal proxy into Claude Code against the GitHub MCP server"]**
+Current milestone: **Track A complete and shipped.** The free CLI is published on npm and PyPI as `mcpseal` (see `CHANGELOG.md` for the current version), released from GitHub Actions via OIDC Trusted Publishing with no stored credentials. Milestone 2's proxy is proven on Linux, macOS and Windows in CI. Track B (Control Plane / dashboard / backend, `services/` and `apps/`) is scaffolded but **not** production-deployed — that is the next track, per `docs/build-bible.md` Part 12.
+
+Keep this line current: it is the first thing a new session reads to know where the work actually stands.
 
 ## How to work in this repo
 
 - **Write tests alongside code, not after.** Every change to `cli-core` hashing or drift logic needs a corresponding case in `test-vectors/hash-fixtures.json` plus a unit test in both language packages.
-- **Before implementing a component, quote the relevant paragraph of `build-bible.md` back to me in your plan** so I can catch drift from spec before you write code, not after.
+- **Before implementing a component, quote the relevant paragraph of `docs/build-bible.md` back to me in your plan** so I can catch drift from spec before you write code, not after.
 - **Small, reviewable commits.** One milestone's sub-step per commit where reasonable, not one giant milestone-sized commit.
-- **When something in `build-bible.md` is ambiguous or you find a better approach**, propose the change and why — don't silently deviate. If I agree, update `build-bible.md` in the same session so the doc stays authoritative.
+- **When something in `docs/build-bible.md` is ambiguous or you find a better approach**, propose the change and why — don't silently deviate. If I agree, update `docs/build-bible.md` in the same session so the doc stays authoritative.
 - **Security-sensitive code (hashing, signature verification, auth, the proxy's block/allow decision) gets extra scrutiny** — walk through the fail-closed behavior explicitly in your plan before implementing, not just in the code comments.
 - **Don't add dependencies casually**, especially in `cli-core` (it needs to stay lean and auditable — it's the trust-critical path) and in anything touching crypto (use well-known, maintained libraries only: e.g. `@noble/ed25519` or `libsodium` bindings, canonical-JSON libraries, never hand-rolled crypto).
 
 ## What NOT to do
 
-- Don't build the Enterprise policy-push feature before the signature-verification path is solid and tested — this is the highest-value attack surface in the whole system (`build-bible.md` Part 8.1 and Part 13).
+- Don't build the Enterprise policy-push feature before the signature-verification path is solid and tested — this is the highest-value attack surface in the whole system (`docs/build-bible.md` Part 8.1 and Part 13).
 - Don't let the dashboard call the Event Store or Postgres directly — always through the App API, so authorization is enforced in one place.
 - Don't add a "fail open" fallback anywhere "to be safe" during development — it's the opposite of safe for this product. If a check can't complete, block and log, in dev and prod alike.
 - Don't ship a lockfile format change without bumping `version` in the schema and handling migration of existing `.mcp-lock.json` files.
