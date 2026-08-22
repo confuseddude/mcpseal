@@ -20,11 +20,19 @@ jobs:
         with:
           node-version: 20
       - uses: pnpm/action-setup@v4
-      # Scope the install to the CLI packages. A bare workspace install
-      # also pulls services/app-api and services/ingest, whose native deps
-      # (better-sqlite3, argon2) need a C++ toolchain and fail on the
-      # Windows runner -- Track B blocking Track A's CI for no reason.
-      - run: pnpm install --frozen-lockfile --filter "mcpseal..." --filter "@mcpseal/cli-core..." --filter "@mcpseal/shared-types..."
+      # Scope the install to the CLI packages, and skip install scripts.
+      #
+      # A bare workspace install also resolves services/app-api and
+      # services/ingest, whose native deps (better-sqlite3, argon2) need a
+      # C++ toolchain and fail on the Windows runner -- Track B blocking
+      # Track A's CI for no reason. --filter alone is not enough: pnpm
+      # still runs those packages' install scripts from the shared
+      # lockfile, so --ignore-scripts is what actually stops the gyp
+      # build. Nothing in the CLI's own tree needs a postinstall (esbuild
+      # and @napi-rs/keyring both ship prebuilt platform binaries as
+      # optional deps), and this was verified from a clean clone: build
+      # succeeds and all cli-node tests pass.
+      - run: pnpm install --frozen-lockfile --filter "mcpseal..." --filter "@mcpseal/cli-core..." --filter "@mcpseal/shared-types..." --ignore-scripts
       - run: pnpm --filter @mcpseal/shared-types build
       - run: pnpm --filter @mcpseal/cli-core build
       - run: pnpm --filter @mcpseal/cli-core test
@@ -47,7 +55,7 @@ jobs:
         with:
           node-version: 20
       - uses: pnpm/action-setup@v4
-      - run: pnpm install --frozen-lockfile --filter "mcpseal..." --filter "@mcpseal/cli-core..." --filter "@mcpseal/shared-types..."
+      - run: pnpm install --frozen-lockfile --filter "mcpseal..." --filter "@mcpseal/cli-core..." --filter "@mcpseal/shared-types..." --ignore-scripts
       - run: pnpm --filter @mcpseal/shared-types build
       - run: pnpm --filter @mcpseal/cli-core build
       - run: pnpm --filter mcpseal build
@@ -104,7 +112,7 @@ jobs:
         with:
           node-version: "20.19"
       - uses: pnpm/action-setup@v4
-      - run: pnpm install --frozen-lockfile --filter "mcpseal..." --filter "@mcpseal/cli-core..." --filter "@mcpseal/shared-types..."
+      - run: pnpm install --frozen-lockfile --filter "mcpseal..." --filter "@mcpseal/cli-core..." --filter "@mcpseal/shared-types..." --ignore-scripts
       - run: pnpm --filter @mcpseal/shared-types build
       - run: pnpm --filter @mcpseal/cli-core build
       - run: pnpm --filter mcpseal build
@@ -122,9 +130,14 @@ jobs:
         with:
           node-version: 20
       - uses: pnpm/action-setup@v4
-      - run: pnpm install --frozen-lockfile --filter "mcpseal..." --filter "@mcpseal/cli-core..." --filter "@mcpseal/shared-types..."
+      - run: pnpm install --frozen-lockfile --filter "mcpseal..." --filter "@mcpseal/cli-core..." --filter "@mcpseal/shared-types..." --ignore-scripts
       - run: pnpm --filter @mcpseal/shared-types build
       - run: pnpm --filter @mcpseal/cli-core build
+      # Installed here rather than as a cli-core devDependency: adding it
+      # to the manifest rewrites vitest's peer-resolution key across the
+      # whole lockfile, which every other job then has to carry for a
+      # report only this Linux-only job produces.
+      - run: pnpm add -w -D "@vitest/coverage-v8@4.1.10"
       - run: pnpm --filter @mcpseal/cli-core test -- --coverage
       - uses: actions/setup-python@v5
         with:
