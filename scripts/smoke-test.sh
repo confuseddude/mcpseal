@@ -67,8 +67,40 @@ echo "  --help ok"
 
 # --- PyPI artifact actually runs, on Linux ---------------------------------
 
+# The Node CLI on a machine with NO keychain backend.
+#
+# This check exists because its absence let a real bug ship: 0.1.3's
+# `mcpseal logout` exited 1 with an opaque [UNKNOWN_ERROR] on any
+# headless Linux box, and this script reported the release green because
+# it only ever exercised the *Python* CLI on that path. Both CLIs are
+# published from this repo; both get checked.
+if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+  step "npx mcpseal@$VERSION survives a machine with no keychain (Node)"
+  docker run --rm node:20-slim bash -lc "
+    set -e
+    mkdir -p /proj
+    out=\$(npx -y 'mcpseal@$VERSION' logout /proj 2>&1) || {
+      echo \"FAIL: logout exited non-zero with no keychain backend:\"
+      echo \"\$out\" | grep -viE 'npm notice|npm warn' | head -5
+      exit 1
+    }
+    echo '  logout ok with no keychain backend'
+    npx -y 'mcpseal@$VERSION' status /proj >/dev/null 2>&1
+    echo '  status ok with no keychain backend'
+  " || fail "Node CLI failed on a machine with no keychain backend"
+fi
+
 if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
   step "pip install mcpseal==$VERSION runs on Linux"
+  # PyPI's JSON API can serve a version minutes before it appears in the
+  # simple index that pip actually reads, so a fresh release fails to
+  # install while every other check says it is live. Wait for the index
+  # rather than reporting a false failure.
+  for attempt in 1 2 3 4 5 6; do
+    if curl -s "https://pypi.org/simple/mcpseal/" | grep -q "mcpseal-$VERSION-py3-none-any.whl"; then break; fi
+    echo "  waiting for the simple index to catch up (attempt $attempt)..."
+    sleep 20
+  done
   docker run --rm python:3.11-slim bash -lc "
     set -e
     pip install -q 'mcpseal==$VERSION'
