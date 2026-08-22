@@ -11,6 +11,10 @@ from mcpseal.login import API_KEY_ACCOUNT, LoginError, login
 from mcpseal.http_client import HttpResponse
 from mcpseal.machine_identity import PRIVATE_KEY_ACCOUNT
 
+from keyring_support import requires_real_keyring
+
+pytestmark = requires_real_keyring
+
 # Real OS keychain integration is unreliable inside headless/ephemeral CI
 # containers -- there's no real desktop session backing gnome-keyring's
 # SecretStorage on Linux runners, which causes both hangs and spurious

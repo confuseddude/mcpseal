@@ -4,6 +4,10 @@ import pytest
 
 from mcpseal.keychain import delete_secret, get_secret, set_secret
 
+from keyring_support import requires_real_keyring
+
+pytestmark = requires_real_keyring
+
 # Real OS keychain integration is unreliable inside headless/ephemeral CI
 # containers -- there's no real desktop session backing gnome-keyring's
 # SecretStorage on Linux runners, which causes both hangs and spurious

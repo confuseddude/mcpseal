@@ -6,6 +6,10 @@ import pytest
 from mcpseal.keychain import delete_secret
 from mcpseal.machine_identity import PRIVATE_KEY_ACCOUNT, load_or_create_machine_identity, sign_with_machine_key
 
+from keyring_support import requires_real_keyring
+
+pytestmark = requires_real_keyring
+
 # Real OS keychain integration is unreliable inside headless/ephemeral CI
 # containers -- there's no real desktop session backing gnome-keyring's
 # SecretStorage on Linux runners, which causes both hangs and spurious
