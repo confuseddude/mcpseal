@@ -49,7 +49,7 @@ export function writeLockfile(path: string, lockfile: Lockfile): void {
   writeFileSync(path, JSON.stringify(lockfile, null, 2), "utf-8");
 }
 
-export function createEmptyLockfile(generatedBy = "mcpseal@0.1.2"): Lockfile {
+export function createEmptyLockfile(generatedBy = "mcpseal@0.1.3"): Lockfile {
   return {
     version: 1,
     generatedAt: new Date().toISOString(),

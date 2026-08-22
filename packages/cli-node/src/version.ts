@@ -10,7 +10,7 @@
 // This is deliberately a plain constant rather than a build-time inject
 // (esbuild `define`) so that vitest, which runs the unbundled sources,
 // sees exactly what the shipped bundle sees.
-export const VERSION = "0.1.2";
+export const VERSION = "0.1.3";
 
 // What goes in a lockfile's `generatedBy` field and the MCP handshake's
 // clientInfo.version — kept here so the format is defined once.

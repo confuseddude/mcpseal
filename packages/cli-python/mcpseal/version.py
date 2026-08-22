@@ -9,7 +9,7 @@ cli-node's package.json drifts from either — so a half-finished version
 bump cannot ship.
 """
 
-VERSION = "0.1.2"
+VERSION = "0.1.3"
 
 # What goes in a lockfile's `generatedBy` field and the MCP handshake's
 # clientInfo.version — kept here so the format is defined once.
