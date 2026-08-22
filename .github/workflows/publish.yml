@@ -25,6 +25,14 @@ jobs:
           node-version: 20
           registry-url: "https://registry.npmjs.org"
       - uses: pnpm/action-setup@v4
+      # OIDC-based Trusted Publishing registry auth needs npm CLI >=
+      # 11.5.1; provenance/attestation signing is an older, separate
+      # feature that works fine on whatever setup-node@v4 bundles with
+      # node-version 20, which is why the previous attempt's provenance
+      # step succeeded (signed + logged to sigstore) but the actual
+      # authenticated PUT 404'd -- npm silently treated it as
+      # unauthenticated rather than erroring on the OIDC exchange itself.
+      - run: npm install -g npm@latest
       - run: pnpm install --frozen-lockfile
       # mcpseal (cli-node) depends on the private workspace packages
       # @mcpseal/cli-core and @mcpseal/shared-types at build/type-check
