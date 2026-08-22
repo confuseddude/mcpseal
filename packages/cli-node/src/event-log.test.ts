@@ -89,4 +89,22 @@ describe("recentBlocks", () => {
     }));
     expect(recentBlocks(events, 2)).toHaveLength(2);
   });
+
+  // Regression: found by the Windows CI runner, where the clock is
+  // coarse enough that two events written back-to-back share a `ts`
+  // (toISOString() is only millisecond-precision). Array.sort is stable,
+  // so comparing `ts` alone returned the OLDEST of a tied group as "most
+  // recent" -- silently misreporting which tool was blocked last, in a
+  // security audit trail. Constructed explicitly so the guarantee
+  // doesn't depend on how fast the test machine is.
+  it("breaks timestamp ties by append order, newest last-appended", () => {
+    const sameTs = "2026-08-17T00:00:00.000Z";
+    const events = [
+      { eventId: "first", ts: sameTs, type: "blocked_drift" as const, server: "s", tool: "a", clientApp: "x", mcpsealVersion: "0.1.0" },
+      { eventId: "second", ts: sameTs, type: "blocked_denied" as const, server: "s", tool: "b", clientApp: "x", mcpsealVersion: "0.1.0" },
+      { eventId: "third", ts: sameTs, type: "blocked_drift" as const, server: "s", tool: "c", clientApp: "x", mcpsealVersion: "0.1.0" },
+    ];
+    expect(recentBlocks(events, 1).map((e) => e.eventId)).toEqual(["third"]);
+    expect(recentBlocks(events).map((e) => e.eventId)).toEqual(["third", "second", "first"]);
+  });
 });

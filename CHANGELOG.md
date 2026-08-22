@@ -11,6 +11,12 @@ Both the npm package (`mcpseal`) and the PyPI package (`mcpseal`) are released t
 - **`mcpseal proxy` did not work on Linux or macOS.** `subprocess.Popen([command, *args], shell=True)` behaves differently across platforms: on Windows the argument list is joined via `list2cmdline`, but on POSIX it runs `/bin/sh -c "<command>"` and demotes the remaining arguments to `$0`/`$1`/…, so MCP servers were spawned **with no arguments**. Such a server never completes the JSON-RPC handshake, and the proxy blocked indefinitely on its first response read. Only the Python package was affected — the Node implementation's `spawn(cmd, args, {shell:true})` joins correctly.
 - **`mcpseal logout` crashed on machines with no OS keyring backend** (e.g. headless Linux). `delete_secret()` handled `PasswordDeleteError` but not its sibling `NoKeyringError`, so logout raised a traceback instead of succeeding as a no-op. Narrowly scoped: a *locked* keychain that does hold a secret still fails loudly, rather than letting you believe you logged out while the credential survives.
 
+- **`recent_blocks` / `recentBlocks` returned the wrong event when timestamps tied.** Both languages sorted the audit trail by timestamp alone, and both languages' sorts are stable — so when two events shared a `ts` (routine, given millisecond precision and coarse clock granularity on Windows) the *oldest* of the tied group was reported as the most recent block. Ties are now broken by append order. Found by the Windows CI runner; it had never failed on a developer machine.
+
+### Changed
+
+- **`engines.node` corrected from `>=18` to `>=20.19.0`.** The old claim was false: `@noble/curves@2` requires Node ≥20.19, so on Node 18 `npx mcpseal` emitted `EBADENGINE` and ran only incidentally — with the crypto library's supported-version guarantee void on the signature-verification path. Node 18 reached end-of-life in April 2025.
+
 ### Added
 
 - **`mcpseal --version` / `-v` / `version`** — prints the bare version string, so it's pipeable into a bug report or CI check.

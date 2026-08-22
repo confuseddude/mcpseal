@@ -86,6 +86,16 @@ def read_events(log_path: str | None = None) -> list[McpsealEvent]:
 
 
 def recent_blocks(events: list[McpsealEvent], limit: int = 10) -> list[McpsealEvent]:
-    blocked = [e for e in events if e["type"].startswith("blocked")]
-    blocked.sort(key=lambda e: e["ts"], reverse=True)
-    return blocked[:limit]
+    # Timestamp ties are common, not theoretical: the system clock's
+    # granularity (coarse on Windows in particular) routinely stamps two
+    # events written back-to-back with the SAME `ts`. Python's sort is
+    # stable, so a plain `reverse=True` sort would preserve append order
+    # within a tied group and hand back the OLDEST event as "most
+    # recent" -- silently misreporting which tool was blocked last.
+    #
+    # The log is append-ordered, so position is the correct tiebreaker:
+    # later in the file means later in time. Mirrors recentBlocks() in
+    # packages/cli-node/src/event-log.ts, which had the same defect.
+    blocked = [(i, e) for i, e in enumerate(events) if e["type"].startswith("blocked")]
+    blocked.sort(key=lambda pair: (pair[1]["ts"], pair[0]), reverse=True)
+    return [e for _, e in blocked[:limit]]

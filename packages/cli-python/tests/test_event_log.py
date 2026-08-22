@@ -65,3 +65,29 @@ def test_recent_blocks_filters_sorts_limits(tmp_path):
 def test_default_events_log_path_is_under_home_mcpseal():
     path = events_log_path()
     assert path.endswith(os.path.join(".mcpseal", "events.jsonl"))
+
+
+def test_recent_blocks_breaks_timestamp_ties_by_append_order():
+    # Regression: found by the Windows CI runner, where the clock is
+    # coarse enough that two events written back-to-back share a `ts`.
+    # A stable sort on `ts` alone returns the OLDEST of a tied group as
+    # "most recent", which silently misreports which tool was blocked
+    # last -- in a security audit trail. Constructed explicitly here so
+    # the guarantee doesn't depend on how fast the test machine is.
+    same_ts = "2026-08-22T12:00:00.000000Z"
+    events = [
+        {"ts": same_ts, "type": "blocked_drift", "server": "s", "tool": "first"},
+        {"ts": same_ts, "type": "blocked_denied", "server": "s", "tool": "second"},
+        {"ts": same_ts, "type": "blocked_drift", "server": "s", "tool": "third"},
+    ]
+    assert recent_blocks(events, limit=1)[0]["tool"] == "third"
+    assert [e["tool"] for e in recent_blocks(events, limit=3)] == ["third", "second", "first"]
+
+
+def test_recent_blocks_still_orders_by_timestamp_when_they_differ():
+    events = [
+        {"ts": "2026-08-22T12:00:02.000000Z", "type": "blocked_drift", "server": "s", "tool": "newest"},
+        {"ts": "2026-08-22T12:00:00.000000Z", "type": "blocked_drift", "server": "s", "tool": "oldest"},
+        {"ts": "2026-08-22T12:00:01.000000Z", "type": "blocked_denied", "server": "s", "tool": "middle"},
+    ]
+    assert [e["tool"] for e in recent_blocks(events, limit=3)] == ["newest", "middle", "oldest"]

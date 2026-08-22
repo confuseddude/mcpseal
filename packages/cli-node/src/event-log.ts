@@ -84,8 +84,21 @@ export function readEvents(logPath: string = eventsLogPath()): McpsealEvent[] {
 }
 
 export function recentBlocks(events: McpsealEvent[], limit = 10): McpsealEvent[] {
+  // Timestamp ties are common, not theoretical: `toISOString()` is only
+  // millisecond-precision, and the system clock's granularity (coarse on
+  // Windows in particular) routinely stamps two events written
+  // back-to-back with the SAME `ts`. Array.prototype.sort is stable, so
+  // comparing `ts` alone would preserve append order within a tied group
+  // and hand back the OLDEST event as "most recent" -- silently
+  // misreporting which tool was blocked last.
+  //
+  // The log is append-ordered, so position is the correct tiebreaker:
+  // later in the file means later in time. Mirrors recent_blocks() in
+  // packages/cli-python/mcpseal/event_log.py.
   return events
-    .filter((e) => e.type.startsWith("blocked"))
-    .sort((a, b) => b.ts.localeCompare(a.ts))
-    .slice(0, limit);
+    .map((e, i) => ({ e, i }))
+    .filter(({ e }) => e.type.startsWith("blocked"))
+    .sort((a, b) => b.e.ts.localeCompare(a.e.ts) || b.i - a.i)
+    .slice(0, limit)
+    .map(({ e }) => e);
 }
