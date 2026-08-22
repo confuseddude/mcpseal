@@ -16,11 +16,6 @@ from mcpseal.machine_identity import PRIVATE_KEY_ACCOUNT
 # SecretStorage on Linux runners, which causes both hangs and spurious
 # failures (see CHECKLIST.md). Covered by manual cross-OS verification
 # before each release instead; this still runs locally on every OS.
-pytestmark = pytest.mark.skipif(
-    os.environ.get("CI") == "true",
-    reason="real OS keychain is unreliable on headless CI runners",
-)
-
 
 def mock_request_sequence(responses):
     state = {"i": 0}
