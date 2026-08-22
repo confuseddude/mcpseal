@@ -20,8 +20,6 @@ jobs:
         with:
           node-version: 20
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @mcpseal/shared-types build
       - run: pnpm --filter @mcpseal/cli-core build
@@ -40,4 +38,13 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -e ".[dev]"
-      - run: pytest -q
+      # ubuntu-latest has no Secret Service / D-Bus session by default, so
+      # `keyring` (used by test_keychain.py's real-OS-keychain test) has
+      # nothing to talk to and hangs instead of failing fast. Give it one.
+      - name: Install a Secret Service backend for keyring tests
+        run: sudo apt-get update && sudo apt-get install -y gnome-keyring dbus-x11
+      - name: Run tests inside a real D-Bus session with keyring unlocked
+        run: |
+          eval "$(dbus-launch --sh-syntax)"
+          echo -n "" | gnome-keyring-daemon --unlock --components=secrets
+          pytest -q
