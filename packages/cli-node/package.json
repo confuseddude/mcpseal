@@ -5,6 +5,11 @@
   "type": "module",
   "description": "MCP tool-integrity CLI - pins tool definitions and blocks rug pulls, free and local, zero account required until you opt in.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/confuseddude/mcpseal.git",
+    "directory": "packages/cli-node"
+  },
   "engines": {
     "node": ">=18"
   },
