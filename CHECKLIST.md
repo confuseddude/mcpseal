@@ -10,7 +10,7 @@ Status snapshot as of `0.1.2` (**published**): GitHub repo live at github.com/co
 
 - [x] **Rotate/revoke the npm token that leaked into a session transcript.** Deleted. Nothing depends on it any more — publishing is OIDC-only.
 - [x] **Rotate/revoke the PyPI token too.** Deleted.
-- [ ] **Clear the local dotfiles — still outstanding.** `~/.npmrc` and `~/.pypirc` both still exist on disk and still contain a credential line each. The tokens they hold are revoked, so they're dead strings, but a plaintext credential in a dotfile is exactly what invariant 6 forbids and there is no longer any reason for either file to exist. Verified neither is tracked by git (`git ls-files` clean), so nothing leaked into the repo.
+- [x] **Local dotfiles cleared.** `~/.npmrc` and `~/.pypirc` are now 0 bytes (backed up first to `~/.mcpseal-credential-backup-*`, mode 700). Both had contained nothing but credentials. Verified neither was ever tracked by git.
 - [x] `.npmrc`/`.pypirc` added to `.gitignore` as belt-and-braces against a stray `git add -A`.
 
 ## 1. Ship a real GitHub repo (blocks almost everything else below)
@@ -184,8 +184,8 @@ Watch the Actions tab. If both jobs go green, check the npm and PyPI package pag
 
 - [x] Revoke the granular npm token used this week
 - [x] Delete the PyPI API token from account settings
-- [ ] Delete or blank `~/.npmrc` and `~/.pypirc` — **still present on disk, one credential line each** (revoked, but should not linger)
-- [ ] Confirm a manual `npm publish` from your machine now fails (proves the token is actually gone, not just unused)
+- [x] Blanked `~/.npmrc` and `~/.pypirc` (0 bytes each; backups kept under `~/.mcpseal-credential-backup-*`)
+- [x] Confirmed a manual publish now fails: `npm whoami` returns `ENEEDAUTH`, and `npm publish --dry-run` warns it requires login. No publishing credential remains on this machine.
 
 ## Bugs hit on the way (so the next person doesn't repeat them)
 

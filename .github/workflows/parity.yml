@@ -20,7 +20,11 @@ jobs:
         with:
           node-version: 20
       - uses: pnpm/action-setup@v4
-      - run: pnpm install --frozen-lockfile
+      # Scope the install to the CLI packages. A bare workspace install
+      # also pulls services/app-api and services/ingest, whose native deps
+      # (better-sqlite3, argon2) need a C++ toolchain and fail on the
+      # Windows runner -- Track B blocking Track A's CI for no reason.
+      - run: pnpm install --frozen-lockfile --filter "mcpseal..." --filter "@mcpseal/cli-core..." --filter "@mcpseal/shared-types..."
       - run: pnpm --filter @mcpseal/shared-types build
       - run: pnpm --filter @mcpseal/cli-core build
       - run: pnpm --filter @mcpseal/cli-core test
@@ -43,7 +47,7 @@ jobs:
         with:
           node-version: 20
       - uses: pnpm/action-setup@v4
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile --filter "mcpseal..." --filter "@mcpseal/cli-core..." --filter "@mcpseal/shared-types..."
       - run: pnpm --filter @mcpseal/shared-types build
       - run: pnpm --filter @mcpseal/cli-core build
       - run: pnpm --filter mcpseal build
@@ -100,7 +104,7 @@ jobs:
         with:
           node-version: "20.19"
       - uses: pnpm/action-setup@v4
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile --filter "mcpseal..." --filter "@mcpseal/cli-core..." --filter "@mcpseal/shared-types..."
       - run: pnpm --filter @mcpseal/shared-types build
       - run: pnpm --filter @mcpseal/cli-core build
       - run: pnpm --filter mcpseal build
@@ -118,7 +122,7 @@ jobs:
         with:
           node-version: 20
       - uses: pnpm/action-setup@v4
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile --filter "mcpseal..." --filter "@mcpseal/cli-core..." --filter "@mcpseal/shared-types..."
       - run: pnpm --filter @mcpseal/shared-types build
       - run: pnpm --filter @mcpseal/cli-core build
       - run: pnpm --filter @mcpseal/cli-core test -- --coverage

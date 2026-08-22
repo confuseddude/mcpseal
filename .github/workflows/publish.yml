@@ -59,7 +59,7 @@ jobs:
       # the install outright on node-version 20 (EBADENGINE). npm
       # 11.5.1+ already has the OIDC fix above and stays Node-20-safe.
       - run: npm install -g npm@^11
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile --filter "mcpseal..." --filter "@mcpseal/cli-core..." --filter "@mcpseal/shared-types..."
       # mcpseal (cli-node) depends on the private workspace packages
       # @mcpseal/cli-core and @mcpseal/shared-types at build/type-check
       # time -- `pnpm --filter mcpseal build` alone doesn't build its
