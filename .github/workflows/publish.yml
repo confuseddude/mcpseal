@@ -58,9 +58,13 @@ jobs:
       - name: Install a Secret Service backend for keyring tests
         run: sudo apt-get update && sudo apt-get install -y gnome-keyring dbus-x11
       - name: Run tests inside a real D-Bus session with keyring unlocked
+        # gnome-keyring-daemon --unlock without --daemonize runs in the
+        # foreground and never returns, so this MUST daemonize and eval
+        # its own exported env vars (GNOME_KEYRING_CONTROL etc), not just
+        # dbus-launch's -- the previous version hung here indefinitely.
         run: |
           eval "$(dbus-launch --sh-syntax)"
-          echo -n "" | gnome-keyring-daemon --unlock --components=secrets
+          eval "$(printf '\n' | gnome-keyring-daemon --daemonize --unlock --components=secrets)"
           pytest -q
       - run: python -m build
       - uses: pypa/gh-action-pypi-publish@release/v1
