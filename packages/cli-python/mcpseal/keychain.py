@@ -32,3 +32,11 @@ def delete_secret(account: str) -> None:
         keyring.delete_password(SERVICE, account)
     except keyring.errors.PasswordDeleteError:
         pass  # already absent — deletion is idempotent
+    except keyring.errors.NoKeyringError:
+        # No backend at all (e.g. a headless Linux box with no Secret
+        # Service): set_secret() fails loudly there, so nothing was ever
+        # stored and there is nothing to delete. Deliberately NOT a broad
+        # KeyringError catch — a locked or erroring keychain that DOES
+        # hold a secret must still fail loudly rather than let the user
+        # believe they logged out while the credential survives.
+        pass

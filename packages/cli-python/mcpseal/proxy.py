@@ -18,6 +18,7 @@ from typing import Any, Callable, TextIO, TypedDict
 
 from mcpseal.drift import DriftResult, check_drift
 from mcpseal.lockfile_schema import Lockfile
+from mcpseal.process_utils import USE_SHELL
 from mcpseal.process_utils import kill_process_tree
 
 
@@ -76,7 +77,7 @@ def run_proxy(
         stdout=subprocess.PIPE,
         stderr=None,
         cwd=cwd,
-        shell=True,
+        shell=USE_SHELL,
         text=True,
         bufsize=1,
     )

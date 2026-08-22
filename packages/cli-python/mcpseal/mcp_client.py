@@ -12,7 +12,7 @@ import threading
 import time
 from typing import Any, TypedDict
 
-from mcpseal.process_utils import kill_process_tree
+from mcpseal.process_utils import USE_SHELL, kill_process_tree
 
 DEFAULT_TIMEOUT_S = 15.0
 
@@ -34,7 +34,7 @@ class McpStdioClient:
             # matches the TS client piping child.stderr to process.stderr.
             stderr=None,
             cwd=cwd,
-            shell=True,
+            shell=USE_SHELL,
             text=True,
             bufsize=1,
         )
