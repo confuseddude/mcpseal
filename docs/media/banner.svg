@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320" role="img" aria-label="mcpseal: MCP tool-integrity CLI">
+  <style>
+    .sans { font-family: "Segoe UI", -apple-system, "Helvetica Neue", Arial, sans-serif; }
+    .mono { font-family: ui-monospace, "SFMono-Regular", "Cascadia Code", Menlo, Consolas, monospace; }</style>
+  <defs>
+    <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="2" cy="2" r="1.2" fill="#E6EDF3" opacity="0.07"/></pattern>
+    <linearGradient id="glow" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3DDC97" stop-opacity="0.2"/><stop offset="0.7" stop-color="#3DDC97" stop-opacity="0"/></linearGradient>
+  </defs>
+  <rect width="1280" height="320" rx="18" fill="#0B0E14"/>
+  <rect width="1280" height="320" rx="18" fill="url(#dots)"/>
+  <rect width="1280" height="320" rx="18" fill="url(#glow)"/>
+  <rect x="0.5" y="0.5" width="1279" height="319" rx="18" fill="none" stroke="#232B36"/>
+  <text x="64" y="88" class="mono" font-size="16" fill="#3DDC97" letter-spacing="1">// confuseddude/mcpseal</text>
+  <text x="62" y="154" class="sans" font-size="64" font-weight="800" fill="#F0F3F6" letter-spacing="-1.5">mcpseal</text>
+  <text x="64" y="196" class="sans" font-size="21" fill="#9DA7B3">Pins the hash of every approved MCP tool and blocks</text>
+  <text x="64" y="224" class="sans" font-size="21" fill="#9DA7B3">the instant one drifts. Free, local, zero-infra.</text>
+  <g class="mono" font-size="15" fill="#C9D1D9">
+    <rect x="64" y="261" width="9" height="9" fill="#3DDC97"/><text x="82" y="270">npm + PyPI</text>
+    <rect x="202" y="261" width="9" height="9" fill="#E6EDF3"/><text x="220" y="270">fail-closed proxy</text>
+    <rect x="403" y="261" width="9" height="9" fill="#6CB6FF"/><text x="421" y="270">SLSA provenance</text>
+  </g>
+  
+  <style>
+    .t-ln { opacity: 0; animation: t-show 12s infinite; }
+    @keyframes t-show { 0% { opacity: 0; } 2% { opacity: 1; } 86% { opacity: 1; } 90%, 100% { opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) { * { animation: none !important; } .t-ln { opacity: 1; } }
+  </style>
+  <rect x="784" y="44" width="452" height="232" rx="12" fill="#11161F" stroke="#232B36"/>
+  <circle cx="808" cy="66" r="5" fill="#FF5F57"/>
+  <circle cx="826" cy="66" r="5" fill="#FEBC2E"/>
+  <circle cx="844" cy="66" r="5" fill="#28C840"/>
+  <line x1="784" y1="86" x2="1236" y2="86" stroke="#232B36"/>
+    <text x="806" y="114" class="mono t-ln" xml:space="preserve" style="animation-delay:0.30s" font-size="14.5" fill="#E6EDF3"><tspan fill="#3DDC97">$</tspan> npx mcpseal init</text>
+    <text x="806" y="140" class="mono t-ln" xml:space="preserve" style="animation-delay:1.40s" font-size="14.5" fill="#9DA7B3">  pinned 14 tools → .mcp-lock.json</text>
+    <text x="806" y="166" class="mono t-ln" xml:space="preserve" style="animation-delay:2.50s" font-size="14.5" fill="#E6EDF3"><tspan fill="#3DDC97">$</tspan> npx mcpseal scan</text>
+    <text x="806" y="192" class="mono t-ln" xml:space="preserve" style="animation-delay:3.60s" font-size="14.5" fill="#3DDC97">  ✓ github/search_repositories</text>
+    <text x="806" y="218" class="mono t-ln" xml:space="preserve" style="animation-delay:4.70s" font-size="14.5" fill="#FF7B72">  ✗ BLOCK create_issue: drifted</text>
+    <text x="806" y="244" class="mono t-ln" xml:space="preserve" style="animation-delay:5.80s" font-size="14.5" fill="#9DA7B3">  run `mcpseal diff` to review</text>
+</svg>
