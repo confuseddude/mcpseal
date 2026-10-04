@@ -1,9 +1,13 @@
-# mcpseal
+<p align="center">
+  <img src="docs/media/banner.svg" width="100%" alt="mcpseal: MCP tool-integrity CLI">
+</p>
 
-[![npm](https://img.shields.io/npm/v/mcpseal?logo=npm&label=npm)](https://www.npmjs.com/package/mcpseal)
-[![PyPI](https://img.shields.io/pypi/v/mcpseal?logo=pypi&logoColor=white&label=PyPI)](https://pypi.org/project/mcpseal/)
-[![CI](https://github.com/confuseddude/mcpseal/actions/workflows/parity.yml/badge.svg)](https://github.com/confuseddude/mcpseal/actions/workflows/parity.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+<p align="center">
+  <a href="https://www.npmjs.com/package/mcpseal"><img src="https://img.shields.io/npm/v/mcpseal?logo=npm&label=npm" alt="npm"></a>
+  <a href="https://pypi.org/project/mcpseal/"><img src="https://img.shields.io/pypi/v/mcpseal?logo=pypi&logoColor=white&label=PyPI" alt="PyPI"></a>
+  <a href="https://github.com/confuseddude/mcpseal/actions/workflows/parity.yml"><img src="https://github.com/confuseddude/mcpseal/actions/workflows/parity.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License: MIT"></a>
+</p>
 
 An MCP tool-integrity CLI: pins the hash of every approved MCP tool definition and blocks execution the instant a tool's description or input schema drifts — the pattern known as a "rug pull," where a server changes a tool's behavior after you've already trusted it. Free, local, zero-infra.
 
@@ -28,7 +32,7 @@ uvx mcpseal init      # Python
 
 Full command-line interface in both languages (`npx mcpseal` / `uvx mcpseal`), including the optional login/workspace path: `init`, `proxy`, `install`, `uninstall`, `scan`, `approve`, `deny`, `diff`, `status`, `doctor`, `login`, `logout`, `policy-pull`. See `docs/DEVELOPER_QUICKSTART.md` for a full walkthrough and `docs/history/TRACK_A_TEST_REPORT.md` for what's been tested and how.
 
-## Quickstart (once published)
+## Quickstart
 
 ```
 npx mcpseal@latest init
@@ -46,12 +50,12 @@ That's it — `init` discovers your MCP servers from your client's config and ap
 
 To undo: `npx mcpseal@latest uninstall` (or `uvx mcpseal uninstall`) restores your original client config exactly.
 
-## Running from source (today, pre-publish)
+## Running from source
 
 TypeScript:
 ```
-git clone <this repo>
-cd mcp-shield
+git clone https://github.com/confuseddude/mcpseal.git
+cd mcpseal
 pnpm install
 pnpm --filter mcpseal build
 node packages/cli-node/dist/cli.js init [projectDir]
@@ -60,8 +64,8 @@ node packages/cli-node/dist/cli.js install [projectDir]
 
 Python:
 ```
-git clone <this repo>
-cd mcp-shield/packages/cli-python
+git clone https://github.com/confuseddude/mcpseal.git
+cd mcpseal/packages/cli-python
 pip install -e .
 mcpseal init [projectDir]
 mcpseal install [projectDir]
